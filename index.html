@@ -29,6 +29,9 @@
             <button class="segment" id="modeLocalButton" type="button" aria-pressed="false">
               2 Player
             </button>
+            <button class="segment" id="modeOnlineButton" type="button" aria-pressed="false">
+              Online
+            </button>
           </div>
 
           <label class="timer-toggle" for="timerToggle">
@@ -67,6 +70,37 @@
             <span>Player 2</span>
             <input id="p2NameInput" name="p2Name" type="text" maxlength="18" autocomplete="off" value="AI Rival">
           </label>
+
+          <div class="online-panel is-hidden" id="onlinePanel" aria-label="Online room controls">
+            <div class="online-status">
+              <span class="rail-label">Online room</span>
+              <strong id="onlineStatusText">Create a room, then send the invite link.</strong>
+              <p id="onlineHelpText">Each player uses their own phone. Picks stay locked until both players choose.</p>
+            </div>
+            <div class="online-actions">
+              <button class="command-button" id="createRoomButton" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14"/>
+                  <path d="M5 12h14"/>
+                </svg>
+                Create room
+              </button>
+              <label class="room-code-control" for="roomCodeInput">
+                <span>Room code</span>
+                <input id="roomCodeInput" name="roomCode" type="text" maxlength="6" autocomplete="off" placeholder="ABC123">
+              </label>
+              <button class="command-button" id="joinRoomButton" type="button">
+                Join
+              </button>
+              <button class="command-button is-hidden" id="copyInviteButton" type="button">
+                Copy link
+              </button>
+              <div class="room-code-pill is-hidden" id="roomCodePill">
+                <span>Room</span>
+                <strong id="roomCodeText">------</strong>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="status-band" aria-label="Scoreboard">
@@ -195,6 +229,7 @@
 
     <div class="toast" id="toast" aria-live="polite"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <script src="src/game.js" defer></script>
   </body>
 </html>

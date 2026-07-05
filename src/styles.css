@@ -175,8 +175,8 @@ h1 {
 
 .segmented-control {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-width: 176px;
+  grid-template-columns: repeat(3, 1fr);
+  min-width: 246px;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -252,6 +252,13 @@ h1 {
   transform: translateY(-1px);
 }
 
+.command-button:disabled,
+.primary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
 .game-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
@@ -304,6 +311,88 @@ h1 {
 .name-control input:focus {
   border-color: var(--mid);
   outline: 0;
+}
+
+.name-control input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.online-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.online-status {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.online-status p {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.online-actions {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.room-code-control {
+  display: grid;
+  gap: 4px;
+}
+
+.room-code-control span,
+.room-code-pill span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.room-code-control input {
+  width: 92px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.18);
+  font: inherit;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.room-code-control input:focus {
+  border-color: var(--mid);
+  outline: 0;
+}
+
+.room-code-pill {
+  display: grid;
+  min-height: 36px;
+  align-content: center;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.room-code-pill strong {
+  letter-spacing: 0.08em;
 }
 
 .player-one-name {
@@ -1033,6 +1122,21 @@ h1 {
 
   .name-bar {
     grid-template-columns: 1fr;
+  }
+
+  .online-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .online-actions {
+    justify-content: stretch;
+  }
+
+  .online-actions .command-button,
+  .room-code-control,
+  .room-code-control input,
+  .room-code-pill {
+    width: 100%;
   }
 
   .player-one-name {
