@@ -73,8 +73,10 @@ assert.equal(new Set(deterministicDeck).size, TRAPS.length, "a deck must contain
 const noRepeatDeck = shuffleTrapDeck(() => 0.999, "line4");
 assert.notEqual(noRepeatDeck[0], "line4", "a reshuffle must not immediately repeat the last trap");
 
-const triangle = trapById("triangle");
-assert.equal(trapOrientations(triangle).length, 4, "triangle should have four rotations");
+const wave = trapById("triangle");
+assert.equal(wave.shortName, "Wave");
+assert.deepEqual(wave.cells, [[0, 0], [1, 1], [2, 0], [3, 1]]);
+assert.equal(trapOrientations(wave).length, 4, "wave should have four orientations");
 
 const line = trapById("line4");
 assert.equal(trapOrientations(line).length, 4, "line should include horizontal, vertical, and both diagonals");
@@ -94,18 +96,20 @@ for (const trap of TRAPS) {
 {
   const board = emptyBoard();
   board[indexFor(0, 0)] = "p1";
+  board[indexFor(1, 1)] = "p1";
   board[indexFor(2, 0)] = "p1";
-  board[indexFor(1, 2)] = "p1";
-  assert.equal(completesTrap(board, "p1", triangle, indexFor(1, 2)), true);
-  assert.equal(completesTrap(board, "p2", triangle, indexFor(1, 2)), false);
+  board[indexFor(3, 1)] = "p1";
+  assert.equal(completesTrap(board, "p1", wave, indexFor(3, 1)), true);
+  assert.equal(completesTrap(board, "p2", wave, indexFor(3, 1)), false);
 }
 
 {
   const board = emptyBoard();
   board[indexFor(0, 0)] = "p1";
+  board[indexFor(1, 1)] = "p1";
   board[indexFor(2, 0)] = "p1";
-  assert.equal(wouldLose(board, "p1", "triangle", indexFor(1, 2)), true);
-  assert.equal(wouldLose(board, "p1", "triangle", indexFor(3, 3)), false);
+  assert.equal(wouldLose(board, "p1", "triangle", indexFor(3, 1)), true);
+  assert.equal(wouldLose(board, "p1", "triangle", indexFor(5, 5)), false);
   assert.equal(wouldComplete(board, "p1", "triangle", indexFor(0, 0)), false);
 }
 
@@ -182,17 +186,19 @@ for (const diagonal of [
 {
   const board = emptyBoard();
   board[indexFor(0, 0)] = "p2";
+  board[indexFor(1, 1)] = "p2";
   board[indexFor(2, 0)] = "p2";
   const move = chooseAiMove(board, "triangle", "p2");
-  assert.notEqual(move, indexFor(1, 2), "standard AI should avoid completing its own triangle");
+  assert.notEqual(move, indexFor(3, 1), "standard AI should avoid completing its own wave");
 }
 
 {
   const board = emptyBoard();
   board[indexFor(0, 0)] = "p1";
+  board[indexFor(1, 1)] = "p1";
   board[indexFor(2, 0)] = "p1";
   const moves = safeMoves(board, "p1", "triangle");
-  assert.equal(moves.includes(indexFor(1, 2)), false);
+  assert.equal(moves.includes(indexFor(3, 1)), false);
   assert.ok(moves.length > 0);
 }
 

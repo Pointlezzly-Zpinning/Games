@@ -32,7 +32,7 @@ Computer and pass-and-play modes work with a static server. Online rooms require
 4. Rotations and mirror images count. Gaps shown inside a trap describe spacing; the spaces do not have to remain empty.
 5. The starting color alternates every round. First to three round wins takes the match.
 
-The deck contains Line of 4, Triangle, Square, Diamond, Corner, Zigzag, and T Shape. Five-piece traps were removed after simulation showed excessive draw rates on the 6 by 6 board.
+The deck contains Line of 4, Wave, Square, Diamond, Corner, Zigzag, and T Shape. Five-piece traps were removed after simulation showed excessive draw rates on the 6 by 6 board.
 
 ## Online Deployment
 

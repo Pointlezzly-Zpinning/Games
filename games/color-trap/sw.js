@@ -1,10 +1,10 @@
-const CACHE_NAME = "color-trap-chips-1";
+const CACHE_NAME = "color-trap-wave-1";
 const BASE_PATH = new URL("./", self.location.href).pathname;
 const CORE_ASSETS = [
   BASE_PATH,
   `${BASE_PATH}index.html`,
-  `${BASE_PATH}src/styles.css?v=chips-1`,
-  `${BASE_PATH}src/game.js?v=objective-1`,
+  `${BASE_PATH}src/styles.css?v=wave-1`,
+  `${BASE_PATH}src/game.js?v=wave-1`,
   `${BASE_PATH}manifest.webmanifest`,
   `${BASE_PATH}src/icon.svg`,
 ];

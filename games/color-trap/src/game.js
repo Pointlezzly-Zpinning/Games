@@ -29,12 +29,12 @@
     },
     {
       id: "triangle",
-      name: "Wide Triangle",
-      shortName: "Triangle",
-      level: "Quick",
-      meta: "3 pieces | exact spacing",
-      rule: "Rotations and mirror images count. The gaps shown are part of the pattern.",
-      cells: [[0, 0], [2, 0], [1, 2]],
+      name: "Wave",
+      shortName: "Wave",
+      level: "Sharp",
+      meta: "4 pieces | diagonal chain",
+      rule: "Follow A1-B2-C1-D2. Rotations and mirror images count.",
+      cells: [[0, 0], [1, 1], [2, 0], [3, 1]],
     },
     {
       id: "square",
