@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#111210">
+    <meta
+      name="description"
+      content="Overreach is a nine-round hidden-token duel. Read the risk, outguess your rival, and never reach too far."
+    >
+    <meta property="og:title" content="Overreach">
+    <meta property="og:description" content="Nine rounds. One token each. Reach too far and bust.">
+    <title>Overreach</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%2319a68c%22/><path d=%22M40 8 18 32h15l-9 24 22-29H31z%22 fill=%22%23faf7ef%22/></svg>">
+    <link rel="stylesheet" href="src/styles.css?v=20260709-1">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-bar">
+        <button class="brand-button" id="homeButton" type="button" aria-label="Overreach home">
+          <span class="brand-mark" aria-hidden="true">9</span>
+          <span class="brand-copy">
+            <strong>Overreach</strong>
+            <small>Nine-round token duel</small>
+          </span>
+        </button>
+
+        <div class="app-actions">
+          <a class="all-games-link" href="/" aria-label="All games" title="All games">
+            <span class="games-grid-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <strong>Games</strong>
+          </a>
+          <span class="connection-chip is-hidden" id="connectionChip">Reconnecting</span>
+          <button class="icon-button" id="rulesButton" type="button" aria-label="Rules" title="Rules">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9.6 9a2.5 2.5 0 1 1 4.6 1.4c-.8.8-1.7 1.1-1.7 2.6"></path>
+              <path d="M12 17h.01"></path>
+            </svg>
+          </button>
+          <button class="icon-button is-hidden" id="leaveButton" type="button" aria-label="Leave match" title="Leave match">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10 17l5-5-5-5"></path>
+              <path d="M15 12H3"></path>
+              <path d="M14 3h6v18h-6"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="view setup-view" id="setupView" aria-labelledby="setupTitle">
+          <div class="setup-stage">
+            <div class="setup-intro">
+              <div class="intro-showdown" aria-hidden="true">
+                <div class="intro-token intro-low"><span>2</span><small>SNIPES</small></div>
+                <div class="intro-versus">VS</div>
+                <div class="intro-token intro-high is-busted"><span>9</span><small>BUSTS</small></div>
+              </div>
+              <div>
+                <span class="eyebrow">Hidden picks. Open information.</span>
+                <h1 id="setupTitle">Read the risk.</h1>
+                <p>Higher scores more, unless the gap is five or greater. Then the low token steals the round.</p>
+              </div>
+              <div class="rule-strip" aria-label="Core rules">
+                <span><b>High</b> beats close</span>
+                <span><b>Low</b> punishes reach</span>
+                <span><b>9</b> rounds total</span>
+              </div>
+            </div>
+
+            <div class="setup-panel">
+              <div class="mode-tabs" role="tablist" aria-label="Game mode">
+                <button class="mode-tab is-active" id="modeOnlineButton" type="button" role="tab" aria-selected="true">Online</button>
+                <button class="mode-tab" id="modeAiButton" type="button" role="tab" aria-selected="false">VS AI</button>
+                <button class="mode-tab" id="modeLocalButton" type="button" role="tab" aria-selected="false">Pass &amp; Play</button>
+              </div>
+
+              <div class="invite-banner is-hidden" id="inviteBanner">
+                <span class="status-dot"></span>
+                <div>
+                  <strong>You were invited</strong>
+                  <span>Room <b id="inviteRoomCode">------</b> is ready to join.</span>
+                </div>
+              </div>
+
+              <form class="setup-form" id="setupForm">
+                <div class="field-grid" id="nameFields">
+                  <label class="field" for="p1NameInput">
+                    <span id="p1NameLabel">Your name</span>
+                    <input id="p1NameInput" name="p1Name" type="text" maxlength="18" autocomplete="nickname" value="You" required>
+                  </label>
+                  <label class="field is-hidden" id="p2NameField" for="p2NameInput">
+                    <span>Player 2 name</span>
+                    <input id="p2NameInput" name="p2Name" type="text" maxlength="18" autocomplete="off" value="Player 2">
+                  </label>
+                </div>
+
+                <label class="setting-row" for="timerToggle">
+                  <span>
+                    <strong>Turn timer</strong>
+                    <small>Random token plays after 15 seconds</small>
+                  </span>
+                  <input id="timerToggle" type="checkbox" checked>
+                  <span class="switch" aria-hidden="true"><span></span></span>
+                </label>
+
+                <div class="mode-content" id="onlineSetup">
+                  <button class="primary-button" id="createRoomButton" type="button">Create private match</button>
+                  <div class="join-divider"><span>or join with a code</span></div>
+                  <div class="join-row">
+                    <label class="field compact-field" for="roomCodeInput">
+                      <span>Room code</span>
+                      <input id="roomCodeInput" name="roomCode" type="text" maxlength="6" autocomplete="off" placeholder="ABC123" inputmode="text">
+                    </label>
+                    <button class="secondary-button" id="joinRoomButton" type="button">Join match</button>
+                  </div>
+                  <p class="form-status" id="onlineStatusText">Connecting to online play...</p>
+                </div>
+
+                <div class="mode-content is-hidden" id="localSetup">
+                  <button class="primary-button" id="startLocalButton" type="submit">Start pass &amp; play</button>
+                </div>
+
+                <div class="mode-content is-hidden" id="aiSetup">
+                  <button class="primary-button" id="startAiButton" type="submit">Challenge the AI</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="view lobby-view is-hidden" id="lobbyView" aria-labelledby="lobbyTitle">
+          <div class="lobby-panel">
+            <span class="eyebrow">Private match</span>
+            <h1 id="lobbyTitle">Invite your rival</h1>
+            <p id="lobbyStatusText">Waiting for another player.</p>
+
+            <button class="room-code-button" id="copyInviteButton" type="button" aria-label="Copy room invite">
+              <span>ROOM CODE</span>
+              <strong id="roomCodeText">------</strong>
+              <small>Tap to copy invite</small>
+            </button>
+
+            <div class="lobby-players">
+              <article class="lobby-player is-ready">
+                <span class="player-avatar player-one-avatar" aria-hidden="true">1</span>
+                <div><strong id="lobbyYouName">You</strong><span>You</span></div>
+                <b>Ready</b>
+              </article>
+              <span class="lobby-vs">VS</span>
+              <article class="lobby-player" id="lobbyOpponent">
+                <span class="player-avatar player-two-avatar" aria-hidden="true">2</span>
+                <div><strong id="lobbyOpponentName">Waiting...</strong><span>Opponent</span></div>
+                <b id="lobbyOpponentState">Joining</b>
+              </article>
+            </div>
+
+            <div class="lobby-actions">
+              <button class="primary-button" id="shareInviteButton" type="button">Share invite</button>
+              <button class="text-button" id="cancelLobbyButton" type="button">Cancel room</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view game-view is-hidden" id="gameView" aria-label="Overreach match">
+          <div class="match-layout">
+            <div class="play-column">
+              <section class="scoreboard" aria-label="Scoreboard">
+                <article class="score-side opponent-score">
+                  <span class="player-avatar player-two-avatar" id="leftAvatar" aria-hidden="true">R</span>
+                  <div class="score-copy">
+                    <span><strong id="leftPlayerName">Rival</strong><i id="leftPlayerStatus">Ready</i></span>
+                    <b id="leftScore">0</b>
+                    <small><span id="leftWins">0</span> rounds</small>
+                  </div>
+                </article>
+
+                <div class="round-progress">
+                  <span id="roundText">Round 1 of 9</span>
+                  <div class="round-dots" id="roundDots" aria-hidden="true"></div>
+                </div>
+
+                <article class="score-side you-score">
+                  <div class="score-copy">
+                    <span><strong id="rightPlayerName">You</strong><i id="rightPlayerStatus">You</i></span>
+                    <b id="rightScore">0</b>
+                    <small><span id="rightWins">0</span> rounds</small>
+                  </div>
+                  <span class="player-avatar player-one-avatar" id="rightAvatar" aria-hidden="true">Y</span>
+                </article>
+              </section>
+
+              <section class="arena" aria-label="Current round" aria-live="polite">
+                <div class="remaining-row opponent-remaining">
+                  <span id="leftRemainingLabel">Rival has 9 left</span>
+                  <div class="mini-hand" id="leftMiniHand"></div>
+                </div>
+
+                <div class="showdown">
+                  <div class="played-slot opponent-slot" id="leftSlot"><span>Hidden</span></div>
+
+                  <div class="round-center">
+                    <span class="result-kicker" id="resultKicker">Your move</span>
+                    <strong id="resultTitle">Choose a token</strong>
+                    <p id="resultText">Pick the risk your rival will not expect.</p>
+                    <div class="turn-timer" id="turnTimer">
+                      <div class="timer-copy"><span id="turnTimerLabel">15 seconds</span><b><span id="turnTimerValue">15</span>s</b></div>
+                      <div class="timer-track" aria-hidden="true"><span id="turnTimerFill"></span></div>
+                    </div>
+                  </div>
+
+                  <div class="played-slot player-slot" id="rightSlot"><span>Yours</span></div>
+                </div>
+
+                <div class="remaining-row your-remaining">
+                  <span id="rightRemainingLabel">You have 9 left</span>
+                  <div class="mini-hand" id="rightMiniHand"></div>
+                </div>
+              </section>
+
+              <section class="hand-board" aria-label="Your tokens">
+                <div class="hand-heading">
+                  <div>
+                    <span class="eyebrow" id="handEyebrow">Your hand</span>
+                    <strong id="handPrompt">Select a token</strong>
+                  </div>
+                  <button class="lock-button is-hidden" id="lockCardButton" type="button">Lock token</button>
+                </div>
+                <div class="token-hand" id="activeHand"></div>
+              </section>
+            </div>
+
+            <aside class="match-sidebar">
+              <div class="sidebar-heading">
+                <div><span class="eyebrow">Match log</span><strong id="historyCount">0 / 9 rounds</strong></div>
+                <button class="icon-button sidebar-close" id="closeHistoryButton" type="button" aria-label="Close match log" title="Close match log">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+              </div>
+              <ol class="history-list" id="historyList"></ol>
+              <div class="legend">
+                <span><i class="legend-low"></i>Low 1-4</span>
+                <span><i class="legend-mid"></i>Mid 5-6</span>
+                <span><i class="legend-high"></i>High 7-9</span>
+              </div>
+            </aside>
+          </div>
+
+          <button class="history-fab" id="historyButton" type="button" aria-label="Open match log">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg>
+            <span id="historyFabCount">0</span>
+          </button>
+
+          <div class="game-over is-hidden" id="gameOverPanel" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
+            <div class="game-over-card">
+              <span class="eyebrow">Final score</span>
+              <h2 id="gameOverTitle">You win</h2>
+              <div class="final-score"><span id="finalLeftScore">0</span><i>-</i><span id="finalRightScore">0</span></div>
+              <p id="gameOverText">Nine rounds complete.</p>
+              <button class="primary-button" id="rematchButton" type="button">Play again</button>
+              <button class="text-button" id="gameOverHomeButton" type="button">Back to modes</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="privacy-screen is-hidden" id="privacyScreen" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
+      <div class="privacy-panel">
+        <span class="privacy-mark" aria-hidden="true"></span>
+        <span class="eyebrow">Secret pick</span>
+        <h2 id="privacyTitle">Pass the device</h2>
+        <p id="privacyText">Keep the next token hidden.</p>
+        <button class="primary-button" id="privacyContinueButton" type="button">I am ready</button>
+      </div>
+    </div>
+
+    <dialog class="rules-dialog" id="rulesDialog">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">How to play</span><h2>Overreach</h2></div>
+        <button class="icon-button" id="closeRulesButton" type="button" aria-label="Close rules" title="Close rules">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <div class="rules-list">
+        <article><b>1</b><div><strong>Choose in secret</strong><p>Each player spends one unused token every round.</p></div></article>
+        <article><b>2</b><div><strong>Higher usually wins</strong><p>The winner scores the value of their own token.</p></div></article>
+        <article><b>3</b><div><strong>Gap of 5 or more busts</strong><p>The high token overreaches and the lower token wins instead.</p></div></article>
+        <article><b>9</b><div><strong>Play every token</strong><p>Highest score wins. Round wins break a score tie.</p></div></article>
+      </div>
+      <div class="rule-example">
+        <span class="example-token low-token">2</span><strong>beats</strong><span class="example-token high-token">9</span><small>9 overreaches by 7</small>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="src/game.js?v=20260709-2" defer></script>
+  </body>
+</html>

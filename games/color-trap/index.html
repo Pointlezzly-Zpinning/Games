@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#171815">
+    <meta
+      name="description"
+      content="Color Trap is a quick strategy game where every round reveals a new forbidden shape."
+    >
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Color Trap</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="src/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="src/styles.css?v=market-ready-6">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="brand-button" id="brandHomeButton" type="button" aria-label="Color Trap home">
+          <span class="brand-mark" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span class="brand-copy">
+            <strong>Color Trap</strong>
+            <small>Think ahead. Leave no shape.</small>
+          </span>
+        </button>
+
+        <div class="top-actions" aria-label="App controls">
+          <a class="all-games-link" href="/" aria-label="All games" title="All games">
+            <span class="games-grid-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <strong>Games</strong>
+          </a>
+          <span class="connection-pill is-hidden" id="connectionPill">
+            <i aria-hidden="true"></i>
+            <span id="connectionText">Connecting</span>
+          </span>
+          <button class="icon-button" id="settingsButton" type="button" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path>
+            </svg>
+          </button>
+          <button class="icon-button" id="rulesButton" type="button" aria-label="How to play" title="How to play">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9.2 9a3 3 0 1 1 5.2 2c-.9.7-1.5 1.2-1.8 2.5"></path>
+              <path d="M12 17h.01"></path>
+              <circle cx="12" cy="12" r="9"></circle>
+            </svg>
+          </button>
+          <button class="text-button is-hidden" id="exitGameButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+            Exit
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="view home-view" id="homeView" aria-labelledby="homeTitle">
+          <div class="home-heading">
+            <span class="eyebrow">Quick strategy. Endless boards.</span>
+            <h1 id="homeTitle">Choose a match</h1>
+            <p>Place your color without completing the trap shown for the round.</p>
+          </div>
+
+          <div class="mode-grid" aria-label="Game modes">
+            <button class="mode-card mode-ai" id="playAiButton" type="button">
+              <span class="mode-icon" aria-hidden="true">
+                <i></i><i></i><i></i><i></i>
+              </span>
+              <span class="mode-copy">
+                <strong>Play the computer</strong>
+                <small>Solo match | about 4 minutes</small>
+              </span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+            </button>
+
+            <button class="mode-card mode-local" id="playLocalButton" type="button">
+              <span class="mode-icon two-player-icon" aria-hidden="true">
+                <i></i><i></i>
+              </span>
+              <span class="mode-copy">
+                <strong>Pass &amp; play</strong>
+                <small>Two players | one screen</small>
+              </span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+            </button>
+
+            <button class="mode-card mode-online" id="playOnlineButton" type="button">
+              <span class="mode-icon online-icon" aria-hidden="true">
+                <i></i><i></i><i></i>
+              </span>
+              <span class="mode-copy">
+                <strong>Play online</strong>
+                <small>Create a private room for a friend</small>
+              </span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+            </button>
+          </div>
+
+          <button class="resume-button is-hidden" id="resumeButton" type="button">
+            <span>
+              <small>Match in progress</small>
+              <strong id="resumeText">Resume round 1</strong>
+            </span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+          </button>
+
+          <div class="rule-ribbon" aria-label="The core rule">
+            <div class="ribbon-pattern" aria-hidden="true">
+              <span></span><span></span><span></span><span class="danger-dot"></span>
+            </div>
+            <p><strong>One rule:</strong> if your new piece completes the shown shape in your color, you lose the round.</p>
+          </div>
+        </section>
+
+        <section class="view online-view is-hidden" id="onlineView" aria-labelledby="onlineTitle">
+          <header class="view-heading">
+            <button class="icon-button back-button" id="onlineBackButton" type="button" aria-label="Back" title="Back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+            </button>
+            <div>
+              <span class="eyebrow">Private match</span>
+              <h1 id="onlineTitle">Play online</h1>
+            </div>
+          </header>
+
+          <div class="online-setup" id="onlineSetup">
+            <label class="field-control" for="onlineNameInput">
+              <span>Your name</span>
+              <input id="onlineNameInput" type="text" maxlength="18" value="Player" autocomplete="nickname">
+            </label>
+
+            <div class="online-choice-grid">
+              <section class="online-choice" aria-labelledby="createRoomTitle">
+                <span class="choice-number" aria-hidden="true">1</span>
+                <h2 id="createRoomTitle">Start a room</h2>
+                <p>Make a private match and send the invite to a friend.</p>
+                <button class="primary-button" id="createRoomButton" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                  Create room
+                </button>
+              </section>
+
+              <div class="choice-divider"><span>or</span></div>
+
+              <section class="online-choice" aria-labelledby="joinRoomTitle">
+                <span class="choice-number" aria-hidden="true">2</span>
+                <h2 id="joinRoomTitle">Join a friend</h2>
+                <p>Use the six-character code from their invite.</p>
+                <div class="join-row">
+                  <label class="field-control code-control" for="roomCodeInput">
+                    <span>Room code</span>
+                    <input id="roomCodeInput" type="text" maxlength="6" autocomplete="off" inputmode="text" placeholder="ABC123">
+                  </label>
+                  <button class="primary-button" id="joinRoomButton" type="button">Join</button>
+                </div>
+              </section>
+            </div>
+
+            <p class="online-message" id="onlineSetupMessage" role="status">Checking online play...</p>
+          </div>
+
+          <div class="waiting-room is-hidden" id="waitingRoom">
+            <div class="waiting-status">
+              <span class="pulse-dot" aria-hidden="true"></span>
+              <span class="eyebrow">Room ready</span>
+              <h2 id="waitingTitle">Waiting for Blue</h2>
+              <p id="waitingMessage">Send the room code or invite link to your friend.</p>
+            </div>
+
+            <button class="room-code-display" id="copyInviteButton" type="button" aria-label="Copy invite link">
+              <span>Room code</span>
+              <strong id="roomCodeText">------</strong>
+              <small>Tap to copy invite</small>
+            </button>
+
+            <div class="seat-list" aria-label="Players">
+              <div class="seat-row seat-red">
+                <span class="seat-token">R</span>
+                <div><small>Red</small><strong id="lobbyRedName">You</strong></div>
+                <span class="seat-state">Ready</span>
+              </div>
+              <div class="seat-row seat-blue">
+                <span class="seat-token">B</span>
+                <div><small>Blue</small><strong id="lobbyBlueName">Waiting...</strong></div>
+                <span class="seat-state" id="lobbyBlueState">Open seat</span>
+              </div>
+            </div>
+
+            <div class="waiting-actions">
+              <button class="secondary-button" id="shareInviteButton" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.8 7.6-4.5"></path><path d="m8.2 13.2 7.6 4.5"></path></svg>
+                Share invite
+              </button>
+              <button class="secondary-button" id="leaveRoomButton" type="button">Leave room</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view game-view is-hidden" id="gameView" aria-label="Color Trap match">
+          <section class="match-bar" aria-label="Match score">
+            <div class="player-score player-red" id="redScorePanel">
+              <span class="player-token">R</span>
+              <div class="player-name"><small>Red</small><strong id="redSeat">You</strong></div>
+              <strong class="score-number" id="redScore">0</strong>
+            </div>
+
+            <div class="round-status">
+              <small id="roundLabel">Round 1 of 5</small>
+              <div class="score-pips" id="scorePips" aria-hidden="true"></div>
+            </div>
+
+            <div class="player-score player-blue" id="blueScorePanel">
+              <strong class="score-number" id="blueScore">0</strong>
+              <div class="player-name"><small>Blue</small><strong id="blueSeat">Computer</strong></div>
+              <span class="player-token">B</span>
+            </div>
+          </section>
+
+          <div class="game-stage">
+            <section class="play-column" aria-label="Game board">
+              <div class="turn-banner" id="turnBanner" aria-live="polite">
+                <span class="turn-dot" aria-hidden="true"></span>
+                <strong id="statusText">Your turn</strong>
+                <small id="statusDetail">Place one red piece.</small>
+              </div>
+
+              <div class="mobile-trap" id="mobileTrap" aria-label="Current trap">
+                <span>Trap</span>
+                <strong id="mobileTrapName">Line of 4</strong>
+                <div class="mobile-trap-preview" id="mobileTrapPreview"></div>
+              </div>
+
+              <div class="board-frame">
+                <div class="coord-row" id="coordRow" aria-hidden="true"></div>
+                <div class="board-with-ranks">
+                  <div class="coord-col" id="coordCol" aria-hidden="true"></div>
+                  <div class="board" id="board" role="grid" aria-label="6 by 6 Color Trap board"></div>
+                </div>
+              </div>
+
+              <div class="game-footer-actions">
+                <button class="secondary-button" id="newMatchButton" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"></path><path d="M4 4v4.6h4.6"></path></svg>
+                  New match
+                </button>
+              </div>
+            </section>
+
+            <aside class="game-sidebar" aria-label="Current trap and moves">
+              <section class="trap-panel" aria-label="Current trap">
+                <div class="panel-heading">
+                  <span class="eyebrow">Avoid this shape</span>
+                  <span class="level-pill" id="activeTrapLevel">Balanced</span>
+                </div>
+                <h2 id="activeTrapName">Line of 4</h2>
+                <p class="trap-meta" id="trapMeta">4 pieces | any direction</p>
+                <div class="trap-preview-wrap">
+                  <div class="trap-preview" id="trapPreview" aria-hidden="true"></div>
+                </div>
+                <p class="trap-rule" id="trapRule">Rotations and mirror images count.</p>
+              </section>
+
+              <section class="move-history" aria-label="Move history">
+                <div class="panel-heading">
+                  <span class="eyebrow">Moves</span>
+                  <span id="moveCount">0 played</span>
+                </div>
+                <ol id="moveLog"></ol>
+              </section>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="app-dialog tutorial-dialog" id="tutorialDialog">
+      <div class="dialog-head">
+        <span class="eyebrow">Learn in 20 seconds</span>
+        <button class="icon-button" id="closeTutorialButton" type="button" aria-label="Close tutorial" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <h2>Build pressure, not the trap.</h2>
+      <div class="tutorial-example" aria-hidden="true">
+        <div class="tutorial-mini-board">
+          <span class="red"></span><span></span><span class="red"></span>
+          <span></span><span></span><span></span>
+          <span></span><span class="danger"></span><span></span>
+        </div>
+        <div class="tutorial-arrow">+</div>
+        <div class="tutorial-result">
+          <strong>Triangle</strong>
+          <span>That red move loses.</span>
+        </div>
+      </div>
+      <ol class="tutorial-steps">
+        <li><strong>See the trap.</strong><span>A new pattern is drawn each round.</span></li>
+        <li><strong>Place one color.</strong><span>Players alternate on any empty space.</span></li>
+        <li><strong>Make them finish it.</strong><span>Completing the pattern in your own color loses the round.</span></li>
+      </ol>
+      <button class="primary-button dialog-primary" id="tutorialPlayButton" type="button">Play a practice match</button>
+    </dialog>
+
+    <dialog class="app-dialog rules-dialog" id="rulesDialog">
+      <div class="dialog-head">
+        <div><span class="eyebrow">Color Trap</span><h2>How to play</h2></div>
+        <button class="icon-button" id="closeRulesButton" type="button" aria-label="Close rules" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <div class="rules-copy">
+        <p>Each round draws one trap. Red and Blue take turns placing one piece on any empty space.</p>
+        <p>The player whose move completes the trap in their own color loses the round. Rotations and mirror images count exactly as shown; empty spaces inside a pattern stay empty spacing, not required empty cells.</p>
+        <p>The first player to win three rounds wins the match. The starting color alternates each round.</p>
+      </div>
+      <div class="trap-gallery" id="trapGallery" aria-label="Trap deck"></div>
+    </dialog>
+
+    <dialog class="app-dialog settings-dialog" id="settingsDialog">
+      <div class="dialog-head">
+        <div><span class="eyebrow">Preferences</span><h2>Settings</h2></div>
+        <button class="icon-button" id="closeSettingsButton" type="button" aria-label="Close settings" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <label class="setting-row" for="soundToggle">
+        <span><strong>Sound</strong><small>Piece and result sounds</small></span>
+        <input id="soundToggle" type="checkbox" checked>
+      </label>
+      <label class="setting-row" for="hintsToggle">
+        <span><strong>Practice hints</strong><small>Mark moves that complete your trap</small></span>
+        <input id="hintsToggle" type="checkbox">
+      </label>
+    </dialog>
+
+    <dialog class="app-dialog result-dialog" id="resultDialog">
+      <span class="result-mark" id="resultMark" aria-hidden="true">R</span>
+      <span class="eyebrow" id="resultEyebrow">Round complete</span>
+      <h2 id="resultTitle">Red wins the round</h2>
+      <p id="resultMessage">Blue completed the trap.</p>
+      <div class="result-score" id="resultScore">Red 1 | Blue 0</div>
+      <button class="primary-button dialog-primary" id="resultPrimaryButton" type="button">Next round</button>
+      <button class="secondary-button dialog-secondary" id="resultHomeButton" type="button">Back to menu</button>
+    </dialog>
+
+    <dialog class="app-dialog confirm-dialog" id="confirmDialog">
+      <span class="eyebrow">Leave this match?</span>
+      <h2 id="confirmTitle">Start over</h2>
+      <p id="confirmMessage">The current board will be cleared.</p>
+      <div class="confirm-actions">
+        <button class="secondary-button" id="confirmCancelButton" type="button">Cancel</button>
+        <button class="danger-button" id="confirmAcceptButton" type="button">Start over</button>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.5" defer></script>
+    <script src="src/game.js?v=market-ready-6" defer></script>
+  </body>
+</html>

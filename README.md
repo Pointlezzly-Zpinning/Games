@@ -1,47 +1,43 @@
-# Overreach
+# Pointlezzly Games
 
-A dependency-free browser version of the nine-round hidden-pick token game, with AI, pass-and-play, and secure private online matches.
+One Vercel-ready repository for two browser strategy games:
 
-## Play locally
+- `games/color-trap/`: avoid completing the shuffled forbidden shape.
+- `games/overreach/`: win a nine-round hidden-token duel without reaching too far.
 
-Open `index.html` in a browser, or serve the folder with any static file server.
+The repository root is the game picker. Both games support computer, same-device, and private online play.
+
+## Local Preview
 
 ```powershell
-cd overreach
 python -m http.server 5173
 ```
 
-Then visit `http://localhost:5173`.
+Open `http://127.0.0.1:5173/`.
 
-## Modes
-
-- `VS AI`: play against a tactical browser AI.
-- `2 Player`: pass-and-play mode that hides each pick between turns.
-- `Online`: create a private room, share the invite link, and play from two phones with simultaneous hidden picks.
-
-## Online rooms with Supabase
-
-Run `supabase-overreach.sql` in your Supabase SQL editor. The migration creates the private `overreach_rooms_v2` table and the room RPC functions used by the browser. Then add these Vercel environment variables:
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-
-Redeploy after adding the variables. The app reads them from `/api/supabase-config`.
-
-The browser never receives direct table access. Each device owns a private room secret, and all joins, picks, timeouts, round resolution, reconnects, and rematches run through validated `security definer` functions. Room updates are row-locked and atomic, so simultaneous picks can resolve only once. Clients poll a sanitized room view for responsive reconnect-safe play.
-
-Rooms expire after 24 hours and are cleaned up as new rooms are created. Explicitly leaving a room ends it for both players.
-
-## Rules
-
-Each player has tokens `1` through `9`. Each round, both players spend one unused token. The higher token wins and scores its own value, unless it is more than `4` higher than the other token. In that case it overreaches, busts, and the lower token wins instead. Same number ties. After nine rounds, highest score wins; if score is tied, most round wins decides it.
-
-## Verify
+## Test
 
 ```powershell
-node test/rules.test.js
+npm test
 ```
 
-## Deploy later
+## Online Setup
 
-This is a static app with one small Vercel API endpoint for Supabase config. Use the repo root in Vercel; no build command is required.
+Run both migrations in the same Supabase project:
+
+1. `games/overreach/supabase-overreach.sql`
+2. `games/color-trap/supabase-overreach.sql`
+
+Configure these Vercel environment variables:
+
+```text
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+The service-role key is used only by the server-side Color Trap room API and is never returned to browsers. Overreach continues to use its security-definer Supabase room functions.
+
+## Deploy
+
+Connect the repository root to Vercel with no build command. Pushing `main` deploys the picker and both games through the existing Git integration.

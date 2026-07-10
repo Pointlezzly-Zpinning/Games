@@ -1,0 +1,7 @@
+{
+  "name": "pointlezzly-games",
+  "private": true,
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

@@ -1,17 +1,5 @@
 {
   "cleanUrls": true,
-  "redirects": [
-    {
-      "source": "/color-trap",
-      "destination": "/games/color-trap/",
-      "permanent": false
-    },
-    {
-      "source": "/overreach",
-      "destination": "/games/overreach/",
-      "permanent": false
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -1,1 +1,4 @@
 .deploy-key/
+.vercel/
+node_modules/
+*.log
