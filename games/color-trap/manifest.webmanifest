@@ -1,7 +1,7 @@
 {
   "name": "Color Trap",
   "short_name": "Color Trap",
-  "description": "A quick strategy game about avoiding a shuffled forbidden shape.",
+  "description": "A quick strategy game about making or avoiding a shuffled shape.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

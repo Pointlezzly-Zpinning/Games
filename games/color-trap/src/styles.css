@@ -99,7 +99,7 @@ h2 {
 .danger-button,
 .mode-card,
 .resume-button,
-.rule-ribbon,
+.objective-heading,
 .join-row,
 .waiting-actions,
 .seat-row,
@@ -531,21 +531,67 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.rule-ribbon {
-  min-height: 74px;
-  gap: 16px;
-  padding: 12px 16px;
+.objective-picker {
+  display: grid;
+  min-height: 78px;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(250px, 290px) minmax(200px, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
-.rule-ribbon p {
-  color: var(--muted);
-  line-height: 1.4;
+.objective-heading {
+  min-width: 0;
+  gap: 11px;
 }
 
-.rule-ribbon strong {
-  color: var(--ink);
+.objective-heading > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.objective-heading strong {
+  font-size: 0.9rem;
+}
+
+.objective-segmented {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.objective-option {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.objective-option.is-active {
+  border-color: #f7dc8e;
+  color: #171711;
+  background: var(--gold);
+}
+
+.objective-picker > p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .ribbon-pattern {
@@ -583,6 +629,12 @@ button:disabled {
   grid-area: 2 / 2;
   border: 2px dashed var(--gold);
   background: transparent;
+}
+
+.objective-picker[data-objective="make"] .ribbon-pattern .danger-dot {
+  border-color: var(--green);
+  border-style: solid;
+  background: var(--green);
 }
 
 .online-view {
@@ -1719,13 +1771,28 @@ button:disabled {
     flex: 0 0 auto;
   }
 
-  .rule-ribbon {
-    gap: 11px;
+  .objective-picker {
+    min-height: 0;
+    grid-template-columns: 1fr;
+    gap: 8px;
     padding: 10px 4px;
   }
 
-  .rule-ribbon p {
-    font-size: 0.8rem;
+  .objective-heading {
+    gap: 9px;
+  }
+
+  .objective-heading strong {
+    font-size: 0.84rem;
+  }
+
+  .objective-picker > p {
+    font-size: 0.78rem;
+  }
+
+  .objective-picker .ribbon-pattern {
+    width: 46px;
+    height: 36px;
   }
 
   .online-view {

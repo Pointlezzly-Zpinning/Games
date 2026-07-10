@@ -3,6 +3,7 @@ const {
   PLAYER_ORDER,
   applyMoveToState,
   nextRoundState,
+  normalizeObjective,
   normalizeRoomState,
   resetMatchState,
 } = require("../src/game.js");
@@ -164,11 +165,13 @@ function publicRoom(row) {
   };
 }
 
-async function createRoom(name) {
+async function createRoom(name, objective) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const roomId = createRoomId();
     const token = createSeatToken();
-    const state = resetMatchState("online", { p1: { name }, p2: null });
+    const state = resetMatchState("online", { p1: { name }, p2: null }, {
+      objective: normalizeObjective(objective),
+    });
     try {
       const rooms = await databaseRequest(`${ROOM_TABLE}?select=id,state,rev,updated_at`, {
         method: "POST",
@@ -276,7 +279,7 @@ async function requestRematch(roomId, token) {
   state.rematchVotes[seat] = true;
   let next = state;
   if (state.rematchVotes.p1 && state.rematchVotes.p2) {
-    next = resetMatchState("online", state.players);
+    next = resetMatchState("online", state.players, { objective: state.objective });
     next.phase = "playing";
   }
   const updated = await updateRoom(room, next);
@@ -324,7 +327,7 @@ module.exports = async function handler(request, response) {
     let result;
 
     if (action === "create") {
-      result = await createRoom(cleanName(body.name));
+      result = await createRoom(cleanName(body.name), body.objective);
     } else {
       if (roomId.length !== ROOM_ID_LENGTH) throw new HttpError(400, "A valid room code is required.");
       switch (action) {

@@ -1,6 +1,6 @@
 # Color Trap
 
-Color Trap is a quick two-player strategy game. Each round draws one forbidden pattern; players place Red and Blue pieces until somebody completes that pattern in their own color and loses the round.
+Color Trap is a quick two-player strategy game. Each round draws one pattern, and players choose whether completing it in their own color wins or loses the round.
 
 ## Current Product
 

@@ -3,6 +3,8 @@
 
   const BOARD_SIZE = 6;
   const MATCH_TARGET = 3;
+  const OBJECTIVE_AVOID = "avoid";
+  const OBJECTIVE_MAKE = "make";
   const STORAGE_MATCH = "colorTrapLocalMatchV2";
   const STORAGE_SETTINGS = "colorTrapSettingsV2";
   const ROOM_ID_LENGTH = 6;
@@ -94,6 +96,10 @@
 
   function otherPlayer(player) {
     return player === "p1" ? "p2" : "p1";
+  }
+
+  function normalizeObjective(value) {
+    return value === OBJECTIVE_MAKE ? OBJECTIVE_MAKE : OBJECTIVE_AVOID;
   }
 
   function indexFor(x, y, size = BOARD_SIZE) {
@@ -208,11 +214,16 @@
     });
   }
 
-  function wouldLose(board, player, trapOrId, index, size = BOARD_SIZE) {
-    if (board[index]) return true;
+  function wouldComplete(board, player, trapOrId, index, size = BOARD_SIZE) {
+    if (board[index]) return false;
     const next = board.slice();
     next[index] = player;
     return completesTrap(next, player, trapOrId, index, size);
+  }
+
+  function wouldLose(board, player, trapOrId, index, size = BOARD_SIZE) {
+    if (board[index]) return true;
+    return wouldComplete(board, player, trapOrId, index, size);
   }
 
   function safeMoves(board, player, trapOrId, size = BOARD_SIZE) {
@@ -223,9 +234,60 @@
     return moves;
   }
 
-  function chooseAiMove(board, trapOrId, player = "p2", size = BOARD_SIZE, difficulty = "standard") {
+  function openPlacementScore(board, player, trapOrId, size = BOARD_SIZE) {
+    const opponent = otherPlayer(player);
+    const trap = typeof trapOrId === "string" ? trapById(trapOrId) : trapOrId;
+    return trapPlacements(trap, size)
+      .reduce((best, placement) => {
+        if (placement.some((index) => board[index] === opponent)) return best;
+        const pieces = placement.filter((index) => board[index] === player).length;
+        return Math.max(best, pieces);
+      }, 0);
+  }
+
+  function chooseAiMove(
+    board,
+    trapOrId,
+    player = "p2",
+    size = BOARD_SIZE,
+    difficulty = "standard",
+    objective = OBJECTIVE_AVOID
+  ) {
     const empties = board.map((value, index) => (value ? null : index)).filter((value) => value !== null);
     if (!empties.length) return -1;
+
+    if (normalizeObjective(objective) === OBJECTIVE_MAKE) {
+      const winningMoves = empties.filter((index) => wouldComplete(board, player, trapOrId, index, size));
+      if (winningMoves.length) return winningMoves[Math.floor(Math.random() * winningMoves.length)];
+
+      if (difficulty === "practice" && Math.random() < 0.24) {
+        return empties[Math.floor(Math.random() * empties.length)];
+      }
+
+      const opponent = otherPlayer(player);
+      const opponentWins = new Set(
+        empties.filter((index) => wouldComplete(board, opponent, trapOrId, index, size))
+      );
+      const center = (size - 1) / 2;
+      const ranked = empties.map((index) => {
+        const next = board.slice();
+        next[index] = player;
+        const ownProgress = openPlacementScore(next, player, trapOrId, size);
+        const opponentProgress = openPlacementScore(next, opponent, trapOrId, size);
+        const { x, y } = pointForIndex(index, size);
+        const distance = Math.abs(x - center) + Math.abs(y - center);
+        return {
+          index,
+          score: (opponentWins.has(index) ? 50 : 0)
+            + ownProgress * 5
+            - opponentProgress * 1.5
+            + (size - distance) * 0.12
+            + Math.random() * 0.7,
+        };
+      });
+      ranked.sort((a, b) => b.score - a.score);
+      return ranked[0].index;
+    }
 
     if (difficulty === "practice" && Math.random() < 0.24) {
       return empties[Math.floor(Math.random() * empties.length)];
@@ -302,8 +364,9 @@
       : PLAYER_ORDER.includes(options.current) ? options.current : "p1";
 
     return {
-      version: 2,
+      version: 3,
       mode: options.mode || "ai",
+      objective: normalizeObjective(options.objective),
       phase: options.phase || "playing",
       board: options.board ? options.board.slice() : emptyBoard(boardSize),
       boardSize,
@@ -366,23 +429,27 @@
     const trap = trapById(state.trapId);
     next.board[index] = player;
 
-    const lost = completesTrap(next.board, player, trap, index, state.boardSize);
+    const completed = completesTrap(next.board, player, trap, index, state.boardSize);
+    const objective = normalizeObjective(state.objective);
     const entry = {
       player,
       index,
       coord: coordForIndex(index, state.boardSize),
       trapId: state.trapId,
-      lost,
+      completed,
+      lost: completed && objective === OBJECTIVE_AVOID,
       turn: state.moveLog.length + 1,
     };
     next.lastMove = entry;
     next.moveLog.unshift(entry);
 
-    if (lost) {
-      next.scores[opponent] += 1;
-      next.phase = next.scores[opponent] >= next.targetWins ? "matchover" : "roundover";
-      next.winner = opponent;
-      next.loser = player;
+    if (completed) {
+      const winner = objective === OBJECTIVE_MAKE ? player : opponent;
+      const loser = otherPlayer(winner);
+      next.scores[winner] += 1;
+      next.phase = next.scores[winner] >= next.targetWins ? "matchover" : "roundover";
+      next.winner = winner;
+      next.loser = loser;
       return next;
     }
 
@@ -407,6 +474,7 @@
     const starter = otherPlayer(state.starter || "p1");
     return createRoundState({
       mode: state.mode,
+      objective: state.objective,
       phase: "playing",
       size: state.boardSize,
       current: starter,
@@ -427,6 +495,7 @@
     return createRoundState({
       mode,
       phase: mode === "online" ? "lobby" : "playing",
+      objective: options.objective,
       players,
       difficulty: options.difficulty || "standard",
       practice: Boolean(options.practice),
@@ -458,7 +527,7 @@
       if (room.phase !== "matchover") throw new Error("The current match is not over.");
       room.rematchVotes[seat] = true;
       if (!room.rematchVotes.p1 || !room.rematchVotes.p2) return room;
-      const next = resetMatchState("online", room.players);
+      const next = resetMatchState("online", room.players, { objective: room.objective });
       next.phase = "playing";
       return next;
     }
@@ -474,6 +543,8 @@
     module.exports = {
       BOARD_SIZE,
       MATCH_TARGET,
+      OBJECTIVE_AVOID,
+      OBJECTIVE_MAKE,
       PLAYER_ORDER,
       TRAPS,
       applyMoveToState,
@@ -487,6 +558,7 @@
       indexForCoord,
       nextRoundState,
       normalizeCells,
+      normalizeObjective,
       normalizePlayers,
       normalizeRoomState,
       resetMatchState,
@@ -496,6 +568,7 @@
       trapById,
       trapOrientations,
       trapPlacements,
+      wouldComplete,
       wouldLose,
     };
   }
@@ -508,14 +581,16 @@
     "brandHomeButton", "closeRulesButton", "closeSettingsButton", "closeTutorialButton", "confirmAcceptButton",
     "confirmCancelButton", "confirmDialog", "confirmMessage", "confirmTitle", "connectionPill", "connectionText",
     "coordCol", "coordRow", "copyInviteButton", "createRoomButton", "exitGameButton", "gameView", "hintsToggle",
-    "homeView", "joinRoomButton", "leaveRoomButton", "lobbyBlueName", "lobbyBlueState", "lobbyRedName",
-    "mobileTrapName", "mobileTrapPreview", "moveCount", "moveLog", "newMatchButton", "onlineBackButton",
-    "onlineNameInput", "onlineSetup", "onlineSetupMessage", "onlineTitle", "onlineView", "playAiButton",
+    "homeSubtitle", "homeView", "joinRoomButton", "leaveRoomButton", "lobbyBlueName", "lobbyBlueState", "lobbyRedName",
+    "mobileObjectiveLabel", "mobileTrapName", "mobileTrapPreview", "moveCount", "moveLog", "newMatchButton", "objectiveAvoidButton",
+    "objectiveDescription", "objectiveMakeButton", "objectivePicker", "onlineBackButton", "onlineNameInput", "onlineSetup",
+    "onlineSetupMessage", "onlineTitle", "onlineView", "playAiButton",
     "playLocalButton", "playOnlineButton", "redScore", "redScorePanel", "redSeat", "resultDialog", "resultEyebrow",
     "resultHomeButton", "resultMark", "resultMessage", "resultPrimaryButton", "resultScore", "resultTitle", "resumeButton",
     "resumeText", "roomCodeInput", "roomCodeText", "roundLabel", "rulesButton", "rulesDialog", "scorePips",
     "settingsButton", "settingsDialog", "shareInviteButton", "soundToggle", "statusDetail", "statusText", "toast",
-    "trapGallery", "trapMeta", "trapPreview", "trapRule", "tutorialDialog", "tutorialPlayButton", "turnBanner",
+    "trapGallery", "trapMeta", "trapObjectiveLabel", "trapPreview", "trapRule", "tutorialDialog", "tutorialGoalText",
+    "tutorialGoalTitle", "tutorialPlayButton", "tutorialResultText", "tutorialTitle", "turnBanner",
     "waitingMessage", "waitingRoom", "waitingTitle",
   ].forEach((id) => { els[id] = document.getElementById(id); });
 
@@ -534,6 +609,7 @@
   let confirmAction = null;
   let savedMatch = loadSavedMatch();
   const preferences = loadPreferences();
+  let selectedObjective = normalizeObjective(preferences.objective);
   const online = {
     actionTimer: null,
     authorized: false,
@@ -558,6 +634,36 @@
     return cleaned || fallback;
   }
 
+  function renderObjectiveSelector() {
+    const makeShapes = selectedObjective === OBJECTIVE_MAKE;
+    els.objectivePicker.dataset.objective = selectedObjective;
+    els.objectiveAvoidButton.classList.toggle("is-active", !makeShapes);
+    els.objectiveMakeButton.classList.toggle("is-active", makeShapes);
+    els.objectiveAvoidButton.setAttribute("aria-pressed", String(!makeShapes));
+    els.objectiveMakeButton.setAttribute("aria-pressed", String(makeShapes));
+    els.homeSubtitle.textContent = makeShapes
+      ? "Build the shown shape in your color before your opponent."
+      : "Place your color without completing the shape shown for the round.";
+    els.objectiveDescription.textContent = makeShapes
+      ? "Complete the shape in your color and you win the round."
+      : "Complete the shape in your color and you lose the round.";
+    els.tutorialTitle.textContent = makeShapes
+      ? "Complete the shape before they do."
+      : "Build pressure, not the trap.";
+    els.tutorialResultText.textContent = makeShapes ? "That red move wins." : "That red move loses.";
+    els.tutorialGoalTitle.textContent = makeShapes ? "Finish it first." : "Make them finish it.";
+    els.tutorialGoalText.textContent = makeShapes
+      ? "Completing the pattern in your own color wins the round."
+      : "Completing the pattern in your own color loses the round.";
+  }
+
+  function selectObjective(value) {
+    selectedObjective = normalizeObjective(value);
+    preferences.objective = selectedObjective;
+    savePreferences();
+    renderObjectiveSelector();
+  }
+
   function playerNames() {
     const fallback = defaultPlayers[state.mode] || defaultPlayers.local;
     return {
@@ -577,9 +683,10 @@
         sound: saved.sound !== false,
         hints: Boolean(saved.hints),
         tutorialSeen: Boolean(saved.tutorialSeen),
+        objective: normalizeObjective(saved.objective),
       };
     } catch {
-      return { sound: true, hints: false, tutorialSeen: false };
+      return { sound: true, hints: false, tutorialSeen: false, objective: OBJECTIVE_AVOID };
     }
   }
 
@@ -644,7 +751,10 @@
   function startLocalMatch(mode, options = {}) {
     leaveOnlineRoom(false);
     const players = mode === "ai" ? defaultPlayers.ai : defaultPlayers.local;
-    state = resetMatchState(mode, players, options);
+    state = resetMatchState(mode, players, {
+      ...options,
+      objective: options.objective || selectedObjective,
+    });
     activeMatch = true;
     resultKey = "";
     showView("game");
@@ -686,7 +796,7 @@
     if (state.mode === "ai" && state.current !== "p1") return;
 
     state = applyMoveToState(state, index);
-    playFeedback(state.lastMove?.lost ? "loss" : "move");
+    playFeedback(state.phase === "playing" ? "move" : state.winner === "p1" ? "win" : "loss");
     persistLocalMatch();
     render();
     scheduleAiIfNeeded();
@@ -696,10 +806,17 @@
     clearTimeout(aiTimer);
     if (state.mode !== "ai" || state.phase !== "playing" || state.current !== "p2") return;
     aiTimer = setTimeout(() => {
-      const move = chooseAiMove(state.board, state.trapId, "p2", state.boardSize, state.difficulty);
+      const move = chooseAiMove(
+        state.board,
+        state.trapId,
+        "p2",
+        state.boardSize,
+        state.difficulty,
+        state.objective
+      );
       if (move < 0) return;
       state = applyMoveToState(state, move);
-      playFeedback(state.lastMove?.lost ? "win" : "move");
+      playFeedback(state.phase === "playing" ? "move" : state.winner === "p1" ? "win" : "loss");
       persistLocalMatch();
       render();
     }, state.practice ? 520 : 380);
@@ -727,7 +844,11 @@
     closeDialog(els.resultDialog);
     const mode = state.mode;
     const players = state.players;
-    state = resetMatchState(mode, players, { difficulty: state.difficulty, practice: state.practice });
+    state = resetMatchState(mode, players, {
+      difficulty: state.difficulty,
+      practice: state.practice,
+      objective: state.objective,
+    });
     resultKey = "";
     persistLocalMatch();
     render();
@@ -750,7 +871,11 @@
     closeDialog(els.confirmDialog);
     const mode = state.mode;
     const players = state.players;
-    state = resetMatchState(mode, players, { difficulty: state.difficulty, practice: state.practice });
+    state = resetMatchState(mode, players, {
+      difficulty: state.difficulty,
+      practice: state.practice,
+      objective: state.objective,
+    });
     resultKey = "";
     persistLocalMatch();
     render();
@@ -771,6 +896,7 @@
   }
 
   function renderHome() {
+    renderObjectiveSelector();
     const canResumeOnline = Boolean(
       online.roomId && online.room && state.mode === "online" && state.phase !== "lobby"
     );
@@ -824,10 +950,14 @@
       els.statusDetail.textContent = "Waiting for their move.";
     } else if (state.mode === "ai" && player === "p2") {
       els.statusText.textContent = "Computer is thinking";
-      els.statusDetail.textContent = "It is looking for pressure.";
+      els.statusDetail.textContent = state.objective === OBJECTIVE_MAKE
+        ? "It is building the shape."
+        : "It is looking for pressure.";
     } else {
       els.statusText.textContent = player === "p1" && state.mode === "ai" ? "Your turn" : `${names[player]}'s turn`;
-      els.statusDetail.textContent = `Place one ${PLAYER_INFO[player].color.toLowerCase()} piece.`;
+      els.statusDetail.textContent = state.objective === OBJECTIVE_MAKE
+        ? `Build with ${PLAYER_INFO[player].color.toLowerCase()}.`
+        : `Place one ${PLAYER_INFO[player].color.toLowerCase()} piece safely.`;
     }
   }
 
@@ -898,10 +1028,13 @@
 
   function renderTrap() {
     const trap = trapById(state.trapId);
+    const makeShapes = state.objective === OBJECTIVE_MAKE;
     els.activeTrapName.textContent = trap.shortName;
     els.activeTrapLevel.textContent = trap.level;
     els.trapMeta.textContent = trap.meta;
     els.trapRule.textContent = trap.rule;
+    els.trapObjectiveLabel.textContent = makeShapes ? "Make this shape" : "Avoid this shape";
+    els.mobileObjectiveLabel.textContent = makeShapes ? "Make" : "Avoid";
     els.mobileTrapName.textContent = trap.shortName;
     fillTrapPreview(els.trapPreview, trap);
     fillTrapPreview(els.mobileTrapPreview, trap, true);
@@ -925,7 +1058,7 @@
       token.className = `log-stone log-${entry.player}`;
       token.textContent = PLAYER_INFO[entry.player].token;
       const text = document.createElement("span");
-      text.textContent = entry.lost
+      text.textContent = (entry.completed ?? entry.lost)
         ? `${names[entry.player]} completed ${trapById(entry.trapId).shortName} at ${entry.coord}`
         : `${names[entry.player]} placed ${entry.coord}`;
       item.append(token, text);
@@ -949,7 +1082,8 @@
       els.resultMark.classList.toggle("is-blue", winner === "p2");
       els.resultEyebrow.textContent = isMatch ? "Match winner" : "Round complete";
       els.resultTitle.textContent = `${names[winner]} wins${isMatch ? " the match" : " the round"}`;
-      els.resultMessage.textContent = `${names[state.loser]} completed ${trapById(state.trapId).shortName} at ${state.lastMove?.coord || "the final space"}.`;
+      const completingPlayer = state.objective === OBJECTIVE_MAKE ? state.winner : state.loser;
+      els.resultMessage.textContent = `${names[completingPlayer]} completed ${trapById(state.trapId).shortName} at ${state.lastMove?.coord || "the final space"}.`;
     } else {
       els.resultMark.textContent = "=";
       els.resultMark.classList.add("is-draw");
@@ -1142,7 +1276,7 @@
       const room = resetMatchState("online", {
         p1: { name: cleanName(els.onlineNameInput.value) },
         p2: null,
-      });
+      }, { objective: selectedObjective });
       online.authorized = true;
       online.guestToken = "";
       applyOnlinePayload({ roomId, room: { state: room, rev: 0 }, seat: "p1", token });
@@ -1212,6 +1346,12 @@
     online.roomId = cleanRoomId(payload.roomId || payload.id || online.roomId);
     online.room = normalizeRoomState(payload.room.state || payload.room);
     online.rev = Number(payload.room.rev ?? payload.rev ?? online.rev);
+    if (selectedObjective !== online.room.objective) {
+      selectedObjective = online.room.objective;
+      preferences.objective = selectedObjective;
+      savePreferences();
+      renderObjectiveSelector();
+    }
     if (payload.seat) online.seat = payload.seat;
     if (payload.token) online.token = payload.token;
     if ((!online.seat || !online.token) && online.roomId) {
@@ -1497,7 +1637,7 @@
     els.waitingTitle.textContent = bothPlayers ? "Starting match" : "Waiting for Blue";
     els.waitingMessage.textContent = bothPlayers
       ? "Both players are ready. The board is opening now."
-      : "Send the room code or invite link to your friend.";
+      : `${room.objective === OBJECTIVE_MAKE ? "Make shape" : "Avoid shape"} mode. Send the room code or invite link to your friend.`;
   }
 
   async function mutateOnline(action, extra = {}) {
@@ -1630,6 +1770,8 @@
   els.playAiButton.addEventListener("click", startAiFlow);
   els.playLocalButton.addEventListener("click", () => startLocalMatch("local"));
   els.playOnlineButton.addEventListener("click", openOnlineView);
+  els.objectiveAvoidButton.addEventListener("click", () => selectObjective(OBJECTIVE_AVOID));
+  els.objectiveMakeButton.addEventListener("click", () => selectObjective(OBJECTIVE_MAKE));
   els.resumeButton.addEventListener("click", resumeMatch);
   els.brandHomeButton.addEventListener("click", goHome);
   els.exitGameButton.addEventListener("click", goHome);
@@ -1710,6 +1852,7 @@
     safeMoves,
     trapById,
     trapPlacements,
+    wouldComplete,
     wouldLose,
   };
 

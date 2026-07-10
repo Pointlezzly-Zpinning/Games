@@ -6,14 +6,14 @@
     <meta name="theme-color" content="#171815">
     <meta
       name="description"
-      content="Color Trap is a quick strategy game where every round reveals a new forbidden shape."
+      content="Color Trap is a quick strategy game where every round reveals a new scoring shape."
     >
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Color Trap</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="src/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="src/styles.css?v=market-ready-6">
+    <link rel="stylesheet" href="src/styles.css?v=objective-1">
   </head>
   <body>
     <div class="app-shell">
@@ -24,7 +24,7 @@
           </span>
           <span class="brand-copy">
             <strong>Color Trap</strong>
-            <small>Think ahead. Leave no shape.</small>
+            <small>Think ahead. Shape the board.</small>
           </span>
         </button>
 
@@ -64,8 +64,29 @@
           <div class="home-heading">
             <span class="eyebrow">Quick strategy. Endless boards.</span>
             <h1 id="homeTitle">Choose a match</h1>
-            <p>Place your color without completing the trap shown for the round.</p>
+            <p id="homeSubtitle">Each round reveals a new shape. Choose how completing it scores.</p>
           </div>
+
+          <section class="objective-picker" id="objectivePicker" aria-labelledby="objectiveHeading" data-objective="avoid">
+            <div class="objective-heading">
+              <div class="ribbon-pattern" aria-hidden="true">
+                <span></span><span></span><span></span><span class="danger-dot"></span>
+              </div>
+              <div>
+                <span class="eyebrow">Round objective</span>
+                <strong id="objectiveHeading">How should shapes score?</strong>
+              </div>
+            </div>
+            <div class="objective-segmented" role="group" aria-labelledby="objectiveHeading">
+              <button class="objective-option is-active" id="objectiveAvoidButton" type="button" aria-pressed="true">
+                Avoid shape
+              </button>
+              <button class="objective-option" id="objectiveMakeButton" type="button" aria-pressed="false">
+                Make shape
+              </button>
+            </div>
+            <p id="objectiveDescription">Complete the shape in your color and you lose the round.</p>
+          </section>
 
           <div class="mode-grid" aria-label="Game modes">
             <button class="mode-card mode-ai" id="playAiButton" type="button">
@@ -110,12 +131,6 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
           </button>
 
-          <div class="rule-ribbon" aria-label="The core rule">
-            <div class="ribbon-pattern" aria-hidden="true">
-              <span></span><span></span><span></span><span class="danger-dot"></span>
-            </div>
-            <p><strong>One rule:</strong> if your new piece completes the shown shape in your color, you lose the round.</p>
-          </div>
         </section>
 
         <section class="view online-view is-hidden" id="onlineView" aria-labelledby="onlineTitle">
@@ -231,7 +246,7 @@
               </div>
 
               <div class="mobile-trap" id="mobileTrap" aria-label="Current trap">
-                <span>Trap</span>
+                <span id="mobileObjectiveLabel">Avoid</span>
                 <strong id="mobileTrapName">Line of 4</strong>
                 <div class="mobile-trap-preview" id="mobileTrapPreview"></div>
               </div>
@@ -255,7 +270,7 @@
             <aside class="game-sidebar" aria-label="Current trap and moves">
               <section class="trap-panel" aria-label="Current trap">
                 <div class="panel-heading">
-                  <span class="eyebrow">Avoid this shape</span>
+                  <span class="eyebrow" id="trapObjectiveLabel">Avoid this shape</span>
                   <span class="level-pill" id="activeTrapLevel">Balanced</span>
                 </div>
                 <h2 id="activeTrapName">Line of 4</h2>
@@ -286,7 +301,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
       </div>
-      <h2>Build pressure, not the trap.</h2>
+      <h2 id="tutorialTitle">Build pressure, not the trap.</h2>
       <div class="tutorial-example" aria-hidden="true">
         <div class="tutorial-mini-board">
           <span class="red"></span><span></span><span class="red"></span>
@@ -296,13 +311,13 @@
         <div class="tutorial-arrow">+</div>
         <div class="tutorial-result">
           <strong>Triangle</strong>
-          <span>That red move loses.</span>
+          <span id="tutorialResultText">That red move loses.</span>
         </div>
       </div>
       <ol class="tutorial-steps">
         <li><strong>See the trap.</strong><span>A new pattern is drawn each round.</span></li>
         <li><strong>Place one color.</strong><span>Players alternate on any empty space.</span></li>
-        <li><strong>Make them finish it.</strong><span>Completing the pattern in your own color loses the round.</span></li>
+        <li><strong id="tutorialGoalTitle">Make them finish it.</strong><span id="tutorialGoalText">Completing the pattern in your own color loses the round.</span></li>
       </ol>
       <button class="primary-button dialog-primary" id="tutorialPlayButton" type="button">Play a practice match</button>
     </dialog>
@@ -316,7 +331,8 @@
       </div>
       <div class="rules-copy">
         <p>Each round draws one trap. Red and Blue take turns placing one piece on any empty space.</p>
-        <p>The player whose move completes the trap in their own color loses the round. Rotations and mirror images count exactly as shown; empty spaces inside a pattern stay empty spacing, not required empty cells.</p>
+        <p><strong>Avoid shape:</strong> completing the trap in your own color loses the round. <strong>Make shape:</strong> completing it wins the round.</p>
+        <p>Rotations and mirror images count exactly as shown; empty spaces inside a pattern stay empty spacing, not required empty cells.</p>
         <p>The first player to win three rounds wins the match. The starting color alternates each round.</p>
       </div>
       <div class="trap-gallery" id="trapGallery" aria-label="Trap deck"></div>
@@ -362,6 +378,6 @@
     <div class="toast" id="toast" aria-live="polite"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.5" defer></script>
-    <script src="src/game.js?v=online-live-1" defer></script>
+    <script src="src/game.js?v=objective-1" defer></script>
   </body>
 </html>

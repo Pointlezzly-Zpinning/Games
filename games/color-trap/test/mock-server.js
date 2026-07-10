@@ -80,7 +80,9 @@ async function handleApi(request, response, url) {
     const record = {
       id,
       rev: 0,
-      state: resetMatchState("online", { p1: { name: body.name || "Host" }, p2: null }),
+      state: resetMatchState("online", { p1: { name: body.name || "Host" }, p2: null }, {
+        objective: body.objective,
+      }),
       tokens: { p1: `host-${id}`, p2: `guest-${id}` },
     };
     rooms.set(id, record);
@@ -120,7 +122,7 @@ async function handleApi(request, response, url) {
   else if (body.action === "rematch") {
     record.state.rematchVotes[seat] = true;
     if (record.state.rematchVotes.p1 && record.state.rematchVotes.p2) {
-      const next = resetMatchState("online", record.state.players);
+      const next = resetMatchState("online", record.state.players, { objective: record.state.objective });
       next.phase = "playing";
       update(record, next);
     } else update(record, record.state);

@@ -2,6 +2,8 @@ const assert = require("node:assert/strict");
 const {
   BOARD_SIZE,
   MATCH_TARGET,
+  OBJECTIVE_AVOID,
+  OBJECTIVE_MAKE,
   TRAPS,
   applyMoveToState,
   applyOnlineActionToState,
@@ -19,11 +21,13 @@ const {
   trapById,
   trapOrientations,
   trapPlacements,
+  wouldComplete,
   wouldLose,
 } = require("../src/game.js");
 
 assert.equal(BOARD_SIZE, 6);
 assert.equal(MATCH_TARGET, 3);
+assert.equal(createRoundState().objective, OBJECTIVE_AVOID);
 assert.equal(TRAPS.length, 7);
 assert.ok(TRAPS.every((trap) => trap.cells.length <= 4), "market deck should avoid draw-heavy five-piece traps");
 assert.equal(coordForIndex(indexFor(3, 4)), "D5");
@@ -50,6 +54,7 @@ assert.equal(shouldShowOnlineLobby("online", "playing", true), false);
 {
   const matchOver = createRoundState({
     mode: "online",
+    objective: OBJECTIVE_MAKE,
     phase: "matchover",
     scores: { p1: 3, p2: 1 },
     players: { p1: { name: "Host" }, p2: { name: "Guest" } },
@@ -58,6 +63,7 @@ assert.equal(shouldShowOnlineLobby("online", "playing", true), false);
   assert.equal(hostReady.rematchVotes.p1, true);
   const restarted = applyOnlineActionToState(hostReady, "p2", "rematch");
   assert.equal(restarted.phase, "playing");
+  assert.equal(restarted.objective, OBJECTIVE_MAKE);
   assert.deepEqual(restarted.scores, { p1: 0, p2: 0 });
 }
 
@@ -100,6 +106,7 @@ for (const trap of TRAPS) {
   board[indexFor(2, 0)] = "p1";
   assert.equal(wouldLose(board, "p1", "triangle", indexFor(1, 2)), true);
   assert.equal(wouldLose(board, "p1", "triangle", indexFor(3, 3)), false);
+  assert.equal(wouldComplete(board, "p1", "triangle", indexFor(0, 0)), false);
 }
 
 for (const diagonal of [
@@ -122,6 +129,25 @@ for (const diagonal of [
   assert.equal(next.winner, "p1");
   assert.equal(next.loser, "p2");
   assert.equal(next.scores.p1, 1);
+}
+
+{
+  const state = createRoundState({
+    objective: OBJECTIVE_MAKE,
+    trapId: "line4",
+    current: "p2",
+    starter: "p2",
+  });
+  state.board[indexFor(0, 0)] = "p2";
+  state.board[indexFor(1, 1)] = "p2";
+  state.board[indexFor(2, 2)] = "p2";
+  const next = applyMoveToState(state, indexFor(3, 3));
+  assert.equal(next.phase, "roundover");
+  assert.equal(next.winner, "p2");
+  assert.equal(next.loser, "p1");
+  assert.equal(next.scores.p2, 1);
+  assert.equal(next.lastMove.completed, true);
+  assert.equal(next.lastMove.lost, false);
 }
 
 {
@@ -168,6 +194,15 @@ for (const diagonal of [
   const moves = safeMoves(board, "p1", "triangle");
   assert.equal(moves.includes(indexFor(1, 2)), false);
   assert.ok(moves.length > 0);
+}
+
+{
+  const board = emptyBoard();
+  board[indexFor(0, 0)] = "p2";
+  board[indexFor(1, 0)] = "p2";
+  board[indexFor(2, 0)] = "p2";
+  const move = chooseAiMove(board, "line4", "p2", BOARD_SIZE, "standard", OBJECTIVE_MAKE);
+  assert.equal(move, indexFor(3, 0), "make-shape AI should take an immediate winning move");
 }
 
 console.log("Color Trap rule tests passed.");
