@@ -875,7 +875,8 @@
       try {
         const response = await fetch("/api/supabase-config", { cache: "no-store" });
         if (!response.ok) throw new Error("Online play is temporarily unavailable.");
-        const config = await response.json();
+        const payload = await response.json();
+        const config = payload.config || payload;
         if (!config.url || !config.anonKey || !window.supabase) {
           throw new Error("Online play is not configured yet.");
         }
