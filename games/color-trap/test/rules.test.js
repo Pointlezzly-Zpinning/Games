@@ -4,6 +4,7 @@ const {
   MATCH_TARGET,
   TRAPS,
   applyMoveToState,
+  applyOnlineActionToState,
   chooseAiMove,
   completesTrap,
   coordForIndex,
@@ -33,6 +34,32 @@ assert.equal(shouldShowOnlineLobby("ai", "playing", false), false);
 assert.equal(shouldShowOnlineLobby("online", "lobby", false), true);
 assert.equal(shouldShowOnlineLobby("online", "lobby", true), true);
 assert.equal(shouldShowOnlineLobby("online", "playing", true), false);
+
+{
+  const room = createRoundState({
+    mode: "online",
+    phase: "playing",
+    players: { p1: { name: "Host" }, p2: { name: "Guest" } },
+  });
+  assert.throws(() => applyOnlineActionToState(room, "p2", "move", { index: 0 }), /not your turn/);
+  const moved = applyOnlineActionToState(room, "p1", "move", { index: 0 });
+  assert.equal(moved.board[0], "p1");
+  assert.equal(moved.current, "p2");
+}
+
+{
+  const matchOver = createRoundState({
+    mode: "online",
+    phase: "matchover",
+    scores: { p1: 3, p2: 1 },
+    players: { p1: { name: "Host" }, p2: { name: "Guest" } },
+  });
+  const hostReady = applyOnlineActionToState(matchOver, "p1", "rematch");
+  assert.equal(hostReady.rematchVotes.p1, true);
+  const restarted = applyOnlineActionToState(hostReady, "p2", "rematch");
+  assert.equal(restarted.phase, "playing");
+  assert.deepEqual(restarted.scores, { p1: 0, p2: 0 });
+}
 
 const deterministicDeck = shuffleTrapDeck(() => 0.5);
 assert.equal(deterministicDeck.length, TRAPS.length);

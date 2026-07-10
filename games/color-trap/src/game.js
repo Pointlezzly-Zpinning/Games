@@ -3,10 +3,12 @@
 
   const BOARD_SIZE = 6;
   const MATCH_TARGET = 3;
-  const ROOM_TABLE = "color_trap_rooms";
   const STORAGE_MATCH = "colorTrapLocalMatchV2";
   const STORAGE_SETTINGS = "colorTrapSettingsV2";
   const ROOM_ID_LENGTH = 6;
+  const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const ROOM_JOIN_TIMEOUT_MS = 9000;
+  const ROOM_SYNC_INTERVAL_MS = 5000;
   const PLAYER_ORDER = Object.freeze(["p1", "p2"]);
   const PLAYER_INFO = Object.freeze({
     p1: { color: "Red", token: "R" },
@@ -432,6 +434,38 @@
     });
   }
 
+  function applyOnlineActionToState(currentState, seat, action, extra = {}) {
+    if (!PLAYER_ORDER.includes(seat)) throw new Error("That player seat is not valid.");
+    const room = normalizeRoomState(currentState);
+
+    if (action === "move") {
+      const index = Number(extra.index);
+      if (!Number.isInteger(index) || index < 0 || index >= room.board.length) {
+        throw new Error("That board space is invalid.");
+      }
+      if (room.phase !== "playing") throw new Error("That round is not active.");
+      if (room.current !== seat) throw new Error("It is not your turn.");
+      if (room.board[index]) throw new Error("That space is already occupied.");
+      return applyMoveToState(room, index);
+    }
+
+    if (action === "next-round") {
+      if (room.phase !== "roundover") throw new Error("The next round is not ready yet.");
+      return nextRoundState(room);
+    }
+
+    if (action === "rematch") {
+      if (room.phase !== "matchover") throw new Error("The current match is not over.");
+      room.rematchVotes[seat] = true;
+      if (!room.rematchVotes.p1 || !room.rematchVotes.p2) return room;
+      const next = resetMatchState("online", room.players);
+      next.phase = "playing";
+      return next;
+    }
+
+    throw new Error("That room action is not supported.");
+  }
+
   function shouldShowOnlineLobby(mode, phase, hasRoom) {
     return mode === "online" && (!hasRoom || phase === "lobby");
   }
@@ -443,6 +477,7 @@
       PLAYER_ORDER,
       TRAPS,
       applyMoveToState,
+      applyOnlineActionToState,
       chooseAiMove,
       completesTrap,
       coordForIndex,
@@ -500,10 +535,14 @@
   let savedMatch = loadSavedMatch();
   const preferences = loadPreferences();
   const online = {
+    actionTimer: null,
+    authorized: false,
     busy: false,
     client: null,
     config: null,
     connection: "offline",
+    guestToken: "",
+    joinTimer: null,
     pollTimer: null,
     ready: false,
     rev: 0,
@@ -994,6 +1033,20 @@
     return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, ROOM_ID_LENGTH);
   }
 
+  function randomOnlineId(alphabet, length) {
+    const bytes = new Uint8Array(length);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
+  }
+
+  function createRoomId() {
+    return randomOnlineId(ROOM_ID_ALPHABET, ROOM_ID_LENGTH);
+  }
+
+  function createOnlineToken() {
+    return randomOnlineId("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 30);
+  }
+
   function roomStorageKey(roomId) {
     return `colorTrapRoom:${roomId}`;
   }
@@ -1006,9 +1059,16 @@
     }
   }
 
-  function storeRoomAccess(roomId, token, seat, name = "Player") {
+  function storeRoomAccess(roomId, token, seat, name = "Player", details = {}) {
     try {
-      localStorage.setItem(roomStorageKey(roomId), JSON.stringify({ token, seat, name }));
+      const previous = getStoredRoom(roomId) || {};
+      localStorage.setItem(roomStorageKey(roomId), JSON.stringify({
+        ...previous,
+        token,
+        seat,
+        name,
+        ...details,
+      }));
     } catch {
       // Reconnect is optional when storage is unavailable.
     }
@@ -1049,17 +1109,16 @@
     try {
       const response = await fetch("/api/supabase-config", { cache: "no-store" });
       const payload = response.ok ? await response.json() : {};
-      if (!payload.configured || payload.roomApiConfigured === false || !payload.config?.url || !payload.config?.anonKey) {
+      if (!payload.configured || !payload.config?.url || !payload.config?.anonKey) {
         throw new Error("Online play is not connected in this preview yet.");
       }
+      if (!window.supabase?.createClient) throw new Error("Online play could not load. Refresh and try again.");
       online.config = payload.config;
-      if (window.supabase?.createClient) {
-        online.client = window.supabase.createClient(payload.config.url, payload.config.anonKey);
-      }
+      online.client = window.supabase.createClient(payload.config.url, payload.config.anonKey);
       online.ready = true;
       els.createRoomButton.disabled = false;
       els.joinRoomButton.disabled = false;
-      setOnlineMessage("Rooms are private and start automatically when both players arrive.");
+      setOnlineMessage("Live rooms are ready and start automatically when both players arrive.");
       return true;
     } catch (error) {
       online.ready = false;
@@ -1073,37 +1132,20 @@
     els.onlineSetupMessage.classList.toggle("is-error", isError);
   }
 
-  async function roomApi(action, payload = {}) {
-    const response = await fetch("/api/room", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ...payload }),
-    });
-    let result = {};
-    try {
-      result = await response.json();
-    } catch {
-      result = {};
-    }
-    if (!response.ok) throw new Error(result.error || "The room could not be updated.");
-    return result;
-  }
-
-  async function fetchRoom(roomId) {
-    const response = await fetch(`/api/room?id=${encodeURIComponent(roomId)}`, { cache: "no-store" });
-    if (response.status === 404) return null;
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "The room could not be loaded.");
-    return result;
-  }
-
   async function createOnlineRoom() {
     if (!online.ready || online.busy) return;
     online.busy = true;
     renderOnline();
     try {
-      const result = await roomApi("create", { name: cleanName(els.onlineNameInput.value) });
-      applyOnlinePayload(result);
+      const roomId = createRoomId();
+      const token = createOnlineToken();
+      const room = resetMatchState("online", {
+        p1: { name: cleanName(els.onlineNameInput.value) },
+        p2: null,
+      });
+      online.authorized = true;
+      online.guestToken = "";
+      applyOnlinePayload({ roomId, room: { state: room, rev: 0 }, seat: "p1", token });
       updateRoomUrl(online.roomId);
       await connectOnlineRoom();
       showToast("Room created. Invite a friend.");
@@ -1123,24 +1165,43 @@
       return;
     }
     if (!online.ready || online.busy) return;
+    let waitingForHost = false;
     online.busy = true;
     renderOnline();
     try {
       const stored = getStoredRoom(roomId);
-      const result = await roomApi("join", {
-        roomId,
-        name: cleanName(els.onlineNameInput.value),
-        token: stored?.token || "",
-      });
-      applyOnlinePayload(result);
+      if (stored?.seat === "p1" && stored.room && stored.token) {
+        online.authorized = true;
+        online.guestToken = String(stored.guestToken || "");
+        applyOnlinePayload({
+          roomId,
+          room: { state: stored.room, rev: Number(stored.rev || 0) },
+          seat: "p1",
+          token: stored.token,
+        });
+        updateRoomUrl(roomId);
+        await connectOnlineRoom();
+        showToast("Hosted room reopened.");
+        return;
+      }
+
+      online.roomId = roomId;
+      online.room = null;
+      online.rev = 0;
+      online.seat = "p2";
+      online.token = stored?.seat === "p2" && stored.token ? stored.token : createOnlineToken();
+      online.authorized = false;
+      online.guestToken = "";
+      storeRoomAccess(roomId, online.token, "p2", cleanName(els.onlineNameInput.value));
       updateRoomUrl(roomId);
+      setOnlineMessage("Connecting to the host...");
       await connectOnlineRoom();
-      showToast(result.reconnected ? "Room reconnected." : "Joined the room.");
+      waitingForHost = true;
     } catch (error) {
       setOnlineMessage(error.message, true);
       showToast(error.message);
     } finally {
-      online.busy = false;
+      if (!waitingForHost || online.authorized) online.busy = false;
       render();
     }
   }
@@ -1160,7 +1221,9 @@
     }
     if (online.roomId && online.token && online.seat) {
       const name = online.room.players[online.seat]?.name || "Player";
-      storeRoomAccess(online.roomId, online.token, online.seat, name);
+      const details = { room: online.room, rev: online.rev };
+      if (online.seat === "p1") details.guestToken = online.guestToken;
+      storeRoomAccess(online.roomId, online.token, online.seat, name, details);
     }
     state = { ...online.room, mode: "online" };
     if (state.phase === "playing") {
@@ -1180,48 +1243,214 @@
   async function connectOnlineRoom() {
     disconnectOnlineTransport();
     if (!online.roomId) return;
+    if (!online.client) throw new Error("Online play could not connect. Refresh and try again.");
     setConnection("connecting");
 
-    if (online.client) {
-      online.subscription = online.client
-        .channel(`color-trap-room-${online.roomId}`)
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: ROOM_TABLE, filter: `id=eq.${online.roomId}` },
-          (payload) => {
-            if (!payload.new || Number(payload.new.rev || 0) <= online.rev) return;
-            applyOnlinePayload({ roomId: online.roomId, room: payload.new });
-            setConnection("live");
-            render();
-          }
-        )
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") setConnection("live");
-          else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) setConnection("offline");
-        });
-    }
+    online.subscription = online.client
+      .channel(`color-trap-room-${online.roomId}`, {
+        config: { broadcast: { ack: true, self: false } },
+      })
+      .on("broadcast", { event: "room-join" }, handleJoinRequest)
+      .on("broadcast", { event: "room-state" }, handleRemoteState)
+      .on("broadcast", { event: "room-action" }, handleActionRequest)
+      .on("broadcast", { event: "room-state-request" }, handleStateRequest)
+      .on("broadcast", { event: "room-error" }, handleRemoteError)
+      .on("broadcast", { event: "room-closed" }, handleRoomClosed)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setConnection("live");
+          if (online.seat === "p1") broadcastRoomState().catch(() => {});
+          else requestOnlineJoin();
+        } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+          setConnection("offline");
+        }
+      });
 
-    online.pollTimer = setInterval(pollOnlineRoom, 4000);
-    await pollOnlineRoom();
+    online.pollTimer = setInterval(pollOnlineRoom, ROOM_SYNC_INTERVAL_MS);
   }
 
   function disconnectOnlineTransport() {
     if (online.subscription && online.client) online.client.removeChannel(online.subscription);
     online.subscription = null;
+    clearTimeout(online.joinTimer);
+    online.joinTimer = null;
     clearInterval(online.pollTimer);
     online.pollTimer = null;
   }
 
-  async function pollOnlineRoom() {
-    if (!online.roomId) return;
+  function onlineEventPayload(message) {
+    return message?.payload || message || {};
+  }
+
+  async function broadcastOnline(event, payload = {}) {
+    if (!online.subscription || online.connection !== "live") {
+      throw new Error("The room is reconnecting. Try again in a moment.");
+    }
+    const result = await online.subscription.send({
+      type: "broadcast",
+      event,
+      payload: { roomId: online.roomId, ...payload },
+    });
+    if (result && result !== "ok") throw new Error("The room did not receive that update.");
+  }
+
+  function broadcastRoomState(target = "") {
+    if (online.seat !== "p1" || !online.room) return Promise.resolve();
+    return broadcastOnline("room-state", {
+      target,
+      rev: online.rev,
+      state: online.room,
+    });
+  }
+
+  function requestOnlineJoin() {
+    if (online.seat !== "p2" || !online.token || online.connection !== "live") return;
+    broadcastOnline("room-join", {
+      token: online.token,
+      name: cleanName(els.onlineNameInput.value),
+    }).catch(() => setConnection("offline"));
+
+    if (!online.joinTimer && !online.authorized) {
+      online.joinTimer = setTimeout(() => {
+        online.joinTimer = null;
+        if (online.authorized) return;
+        online.busy = false;
+        setOnlineMessage("The host is not in that room yet. Check the code or ask them to reopen it.", true);
+        renderOnline();
+      }, ROOM_JOIN_TIMEOUT_MS);
+    }
+  }
+
+  async function commitHostState(nextState, target = "") {
+    if (online.seat !== "p1") return;
+    online.rev += 1;
+    applyOnlinePayload({
+      roomId: online.roomId,
+      room: { state: nextState, rev: online.rev },
+      seat: "p1",
+      token: online.token,
+    });
+    online.busy = false;
+    render();
+    await broadcastRoomState(target);
+  }
+
+  function sendOnlineError(target, message) {
+    return broadcastOnline("room-error", { target, message }).catch(() => {});
+  }
+
+  async function handleJoinRequest(message) {
+    if (online.seat !== "p1" || !online.room) return;
+    const payload = onlineEventPayload(message);
+    if (cleanRoomId(payload.roomId) !== online.roomId) return;
+    const token = String(payload.token || "");
+    if (!token) return;
+
+    const next = normalizeRoomState(online.room);
+    if (next.players.p2 && online.guestToken && token !== online.guestToken) {
+      await sendOnlineError(token, "That room already has two players.");
+      return;
+    }
+
+    if (!online.guestToken) online.guestToken = token;
+    const name = cleanName(payload.name, "Blue");
+    const changed = !next.players.p2 || next.players.p2.name !== name || next.phase === "lobby";
+    next.players.p2 = { name };
+    if (next.players.p1 && next.players.p2 && next.phase === "lobby") {
+      next.phase = "playing";
+      next.current = next.starter || "p1";
+    }
+
+    if (changed) await commitHostState(next, token);
+    else await broadcastRoomState(token);
+  }
+
+  function handleRemoteState(message) {
+    if (online.seat !== "p2") return;
+    const payload = onlineEventPayload(message);
+    if (cleanRoomId(payload.roomId) !== online.roomId || !payload.state) return;
+    const target = String(payload.target || "");
+    if (target && target !== online.token) return;
+    if (!online.authorized && target !== online.token) return;
+    const rev = Number(payload.rev || 0);
+    if (online.authorized && rev < online.rev) return;
+
+    const firstState = !online.authorized;
+    online.authorized = true;
+    online.busy = false;
+    clearTimeout(online.actionTimer);
+    online.actionTimer = null;
+    clearTimeout(online.joinTimer);
+    online.joinTimer = null;
+    applyOnlinePayload({ roomId: online.roomId, room: { state: payload.state, rev } });
+    setConnection("live");
+    render();
+    if (firstState) showToast("Joined the room.");
+  }
+
+  async function handleActionRequest(message) {
+    if (online.seat !== "p1" || !online.room) return;
+    const payload = onlineEventPayload(message);
+    if (cleanRoomId(payload.roomId) !== online.roomId) return;
+    const token = String(payload.token || "");
+    if (!token || token !== online.guestToken) {
+      if (token) await sendOnlineError(token, "That player is not seated in this room.");
+      return;
+    }
     try {
-      const result = await fetchRoom(online.roomId);
-      if (!result) throw new Error("Room expired");
-      if (Number(result.room?.rev ?? result.rev ?? 0) > online.rev) {
-        applyOnlinePayload({ roomId: online.roomId, room: result.room || result });
-        render();
+      const next = applyOnlineActionToState(online.room, "p2", payload.action, payload.extra || {});
+      await commitHostState(next);
+    } catch (error) {
+      await sendOnlineError(token, error.message || "That move could not be played.");
+    }
+  }
+
+  function handleStateRequest(message) {
+    if (online.seat !== "p1" || !online.room) return;
+    const payload = onlineEventPayload(message);
+    if (cleanRoomId(payload.roomId) !== online.roomId) return;
+    if (String(payload.token || "") !== online.guestToken) return;
+    broadcastRoomState(online.guestToken).catch(() => {});
+  }
+
+  function handleRemoteError(message) {
+    if (online.seat !== "p2") return;
+    const payload = onlineEventPayload(message);
+    if (cleanRoomId(payload.roomId) !== online.roomId || String(payload.target || "") !== online.token) return;
+    online.busy = false;
+    clearTimeout(online.actionTimer);
+    online.actionTimer = null;
+    const messageText = String(payload.message || "The room could not complete that action.");
+    setOnlineMessage(messageText, true);
+    showToast(messageText);
+    if (!online.authorized) {
+      disconnectOnlineTransport();
+      setConnection("offline");
+    }
+    render();
+  }
+
+  function handleRoomClosed(message) {
+    if (online.seat !== "p2") return;
+    const payload = onlineEventPayload(message);
+    if (cleanRoomId(payload.roomId) !== online.roomId) return;
+    const closedRoomId = online.roomId;
+    leaveOnlineRoom(false);
+    clearRoomAccess(closedRoomId);
+    showView("online");
+    renderOnline();
+    setOnlineMessage("The host closed this room.", true);
+  }
+
+  async function pollOnlineRoom() {
+    if (!online.roomId || online.connection !== "live") return;
+    try {
+      if (online.seat === "p1") await broadcastRoomState();
+      else if (online.authorized) {
+        await broadcastOnline("room-state-request", { token: online.token });
+      } else {
+        requestOnlineJoin();
       }
-      setConnection("live");
     } catch {
       setConnection("offline");
     }
@@ -1272,28 +1501,40 @@
   }
 
   async function mutateOnline(action, extra = {}) {
-    if (!online.roomId || !online.token || online.busy) return;
+    if (!online.roomId || !online.token || !online.authorized || online.busy) return;
     online.busy = true;
     render();
     try {
-      const result = await roomApi(action, {
-        roomId: online.roomId,
-        token: online.token,
-        ...extra,
-      });
-      applyOnlinePayload(result);
-      render();
+      if (online.seat === "p1") {
+        const next = applyOnlineActionToState(online.room, "p1", action, extra);
+        await commitHostState(next);
+      } else {
+        await broadcastOnline("room-action", {
+          token: online.token,
+          action,
+          extra,
+          rev: online.rev,
+        });
+        clearTimeout(online.actionTimer);
+        online.actionTimer = setTimeout(() => {
+          online.actionTimer = null;
+          if (!online.busy) return;
+          online.busy = false;
+          showToast("The host did not receive that action. Try again.");
+          pollOnlineRoom();
+          render();
+        }, ROOM_JOIN_TIMEOUT_MS);
+      }
     } catch (error) {
+      online.busy = false;
       showToast(error.message || "The room could not be updated.");
       await pollOnlineRoom();
-    } finally {
-      online.busy = false;
       render();
     }
   }
 
   function playOnlineMove(index) {
-    if (state.phase !== "playing" || online.seat !== state.current || state.board[index]) return;
+    if (!online.authorized || state.phase !== "playing" || online.seat !== state.current || state.board[index]) return;
     mutateOnline("move", { index });
   }
 
@@ -1346,10 +1587,17 @@
   }
 
   function leaveOnlineRoom(clearAccess = true) {
+    if (online.seat === "p1" && online.subscription && online.connection === "live") {
+      broadcastOnline("room-closed").catch(() => {});
+    }
     disconnectOnlineTransport();
     if (clearAccess && online.roomId) clearRoomAccess(online.roomId);
+    clearTimeout(online.actionTimer);
+    online.actionTimer = null;
+    online.authorized = false;
     online.busy = false;
     online.connection = "offline";
+    online.guestToken = "";
     online.rev = 0;
     online.room = null;
     online.roomId = "";
@@ -1366,22 +1614,10 @@
     if (!online.ready) return true;
     const stored = getStoredRoom(roomId);
     if (stored?.token) {
-      if (stored.name) {
-        els.onlineNameInput.value = stored.name;
-      } else {
-        const preview = await fetchRoom(roomId).catch(() => null);
-        const savedName = preview?.room?.state?.players?.[stored.seat]?.name;
-        if (savedName) els.onlineNameInput.value = savedName;
-      }
+      if (stored.name) els.onlineNameInput.value = stored.name;
       await joinOnlineRoom(roomId);
     } else {
-      try {
-        const preview = await fetchRoom(roomId);
-        if (!preview) setOnlineMessage("That room does not exist or has expired.", true);
-        else setOnlineMessage("Invite found. Enter your name and tap Join.");
-      } catch (error) {
-        setOnlineMessage(error.message, true);
-      }
+      setOnlineMessage("Invite ready. Enter your name and tap Join.");
     }
     return true;
   }
