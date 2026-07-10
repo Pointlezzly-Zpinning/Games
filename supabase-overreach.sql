@@ -605,5 +605,25 @@ grant execute on function public.overreach_play_card_v2(text, text, smallint) to
 grant execute on function public.overreach_rematch_v2(text, text) to anon, authenticated;
 grant execute on function public.overreach_leave_room_v2(text, text) to anon, authenticated;
 
+do $$
+begin
+  if to_regclass('public.overreach_rooms') is not null then
+    execute 'drop policy if exists "overreach rooms are readable" on public.overreach_rooms';
+    execute 'drop policy if exists "overreach rooms can be created" on public.overreach_rooms';
+    execute 'drop policy if exists "overreach rooms can be updated" on public.overreach_rooms';
+    execute 'revoke all on table public.overreach_rooms from anon, authenticated';
+
+    if exists (
+      select 1
+      from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'overreach_rooms'
+    ) then
+      execute 'alter publication supabase_realtime drop table public.overreach_rooms';
+    end if;
+  end if;
+end $$;
+
 comment on table public.overreach_rooms_v2 is
   'Private two-player Overreach rooms. Clients can only interact through validated RPC functions.';
