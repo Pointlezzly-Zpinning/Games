@@ -70,6 +70,25 @@ for (let i = 0; i < 50; i += 1) {
   assert.ok(card >= 1 && card <= 9, "AI should choose a card from its hand");
 }
 
+for (let p1Card = 1; p1Card <= 9; p1Card += 1) {
+  for (let p2Card = 1; p2Card <= 9; p2Card += 1) {
+    const result = resolveRound(p1Card, p2Card);
+    const reverse = resolveRound(p2Card, p1Card);
+
+    assert.equal(result.p1Points, reverse.p2Points, "round resolution should be symmetric");
+    assert.equal(result.p2Points, reverse.p1Points, "reverse resolution should preserve points");
+    assert.equal(result.overreach, Math.abs(p1Card - p2Card) > 4, "only gaps over four should overreach");
+
+    if (p1Card === p2Card) {
+      assert.equal(result.winner, null, "matching cards should tie");
+      assert.equal(result.p1Points + result.p2Points, 0, "ties should not score");
+    } else {
+      const winningCard = result.winner === "p1" ? p1Card : p2Card;
+      assert.equal(result.p1Points + result.p2Points, winningCard, "the winner should score their own card");
+    }
+  }
+}
+
 console.log("Overreach rule tests passed.");
 
 function pick(result) {

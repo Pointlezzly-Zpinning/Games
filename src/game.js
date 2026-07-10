@@ -5,7 +5,8 @@
   const MAX_ROUNDS = 9;
   const OVERREACH_GAP = 4;
   const TURN_SECONDS = 15;
-  const ROOM_TABLE = "overreach_rooms";
+  const REVEAL_MS = 2200;
+  const POLL_MS = 650;
   const ROOM_ID_LENGTH = 6;
   const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -61,17 +62,13 @@
 
   function chooseAiCard(aiHand, playerHand) {
     if (aiHand.length === 1) return aiHand[0];
-
-    if (Math.random() < 0.16) {
-      return randomItem(aiHand);
-    }
+    if (Math.random() < 0.16) return randomItem(aiHand);
 
     const ranked = aiHand.map((card) => {
       const expected = playerHand.reduce((sum, playerCard) => {
         return sum + scoreDifferentialForP2(card, playerCard);
       }, 0) / playerHand.length;
-      const uncertainty = Math.random() * 1.1;
-      return { card, score: expected + uncertainty };
+      return { card, score: expected + Math.random() * 1.1 };
     });
 
     ranked.sort((a, b) => b.score - a.score);
@@ -90,1389 +87,191 @@
 
   if (typeof document === "undefined") return;
 
-  const els = {
-    activeHand: document.getElementById("activeHand"),
-    closeRulesButton: document.getElementById("closeRulesButton"),
-    copyInviteButton: document.getElementById("copyInviteButton"),
-    createRoomButton: document.getElementById("createRoomButton"),
-    handOwnerLabel: document.getElementById("handOwnerLabel"),
-    historyCount: document.getElementById("historyCount"),
-    historyList: document.getElementById("historyList"),
-    joinRoomButton: document.getElementById("joinRoomButton"),
-    modeAiButton: document.getElementById("modeAiButton"),
-    modeLocalButton: document.getElementById("modeLocalButton"),
-    modeOnlineButton: document.getElementById("modeOnlineButton"),
-    nextRoundButton: document.getElementById("nextRoundButton"),
-    onlineHelpText: document.getElementById("onlineHelpText"),
-    onlinePanel: document.getElementById("onlinePanel"),
-    onlineStatusText: document.getElementById("onlineStatusText"),
-    p1MiniHand: document.getElementById("p1MiniHand"),
-    p1NameInput: document.getElementById("p1NameInput"),
-    p1NameScore: document.getElementById("p1NameScore"),
-    p1RailLabel: document.getElementById("p1RailLabel"),
-    p1RemainingText: document.getElementById("p1RemainingText"),
-    p1Score: document.getElementById("p1Score"),
-    p1Slot: document.getElementById("p1Slot"),
-    p1Wins: document.getElementById("p1Wins"),
-    p2MiniHand: document.getElementById("p2MiniHand"),
-    p2NameInput: document.getElementById("p2NameInput"),
-    p2NameScore: document.getElementById("p2NameScore"),
-    p2RailLabel: document.getElementById("p2RailLabel"),
-    p2RemainingText: document.getElementById("p2RemainingText"),
-    p2Score: document.getElementById("p2Score"),
-    p2Slot: document.getElementById("p2Slot"),
-    p2Wins: document.getElementById("p2Wins"),
-    phasePill: document.getElementById("phasePill"),
-    privacyContinueButton: document.getElementById("privacyContinueButton"),
-    privacyScreen: document.getElementById("privacyScreen"),
-    privacyText: document.getElementById("privacyText"),
-    privacyTitle: document.getElementById("privacyTitle"),
-    resetButton: document.getElementById("resetButton"),
-    resultKicker: document.getElementById("resultKicker"),
-    resultText: document.getElementById("resultText"),
-    roomCodeInput: document.getElementById("roomCodeInput"),
-    roomCodePill: document.getElementById("roomCodePill"),
-    roomCodeText: document.getElementById("roomCodeText"),
-    roundDots: document.getElementById("roundDots"),
-    roundText: document.getElementById("roundText"),
-    rulesButton: document.getElementById("rulesButton"),
-    rulesDialog: document.getElementById("rulesDialog"),
-    startGameButton: document.getElementById("startGameButton"),
-    timerToggle: document.getElementById("timerToggle"),
-    toast: document.getElementById("toast"),
-    turnTimer: document.getElementById("turnTimer"),
-    turnTimerFill: document.getElementById("turnTimerFill"),
-    turnTimerLabel: document.getElementById("turnTimerLabel"),
-    turnTimerValue: document.getElementById("turnTimerValue"),
-    turnPrompt: document.getElementById("turnPrompt"),
+  const els = Object.fromEntries([
+    "activeHand",
+    "aiSetup",
+    "cancelLobbyButton",
+    "closeHistoryButton",
+    "closeRulesButton",
+    "connectionChip",
+    "copyInviteButton",
+    "createRoomButton",
+    "finalLeftScore",
+    "finalRightScore",
+    "gameOverHomeButton",
+    "gameOverPanel",
+    "gameOverText",
+    "gameOverTitle",
+    "gameView",
+    "handEyebrow",
+    "handPrompt",
+    "historyButton",
+    "historyCount",
+    "historyFabCount",
+    "historyList",
+    "homeButton",
+    "inviteBanner",
+    "inviteRoomCode",
+    "joinRoomButton",
+    "leaveButton",
+    "leftAvatar",
+    "leftMiniHand",
+    "leftPlayerName",
+    "leftPlayerStatus",
+    "leftRemainingLabel",
+    "leftScore",
+    "leftSlot",
+    "leftWins",
+    "lobbyOpponent",
+    "lobbyOpponentName",
+    "lobbyOpponentState",
+    "lobbyStatusText",
+    "lobbyView",
+    "lobbyYouName",
+    "localSetup",
+    "lockCardButton",
+    "modeAiButton",
+    "modeLocalButton",
+    "modeOnlineButton",
+    "onlineSetup",
+    "onlineStatusText",
+    "p1NameInput",
+    "p1NameLabel",
+    "p2NameField",
+    "p2NameInput",
+    "privacyContinueButton",
+    "privacyScreen",
+    "privacyText",
+    "privacyTitle",
+    "rematchButton",
+    "resultKicker",
+    "resultText",
+    "resultTitle",
+    "rightAvatar",
+    "rightMiniHand",
+    "rightPlayerName",
+    "rightPlayerStatus",
+    "rightRemainingLabel",
+    "rightScore",
+    "rightSlot",
+    "rightWins",
+    "roomCodeInput",
+    "roomCodeText",
+    "roundDots",
+    "roundText",
+    "rulesButton",
+    "rulesDialog",
+    "setupForm",
+    "setupView",
+    "shareInviteButton",
+    "timerToggle",
+    "toast",
+    "turnTimer",
+    "turnTimerFill",
+    "turnTimerLabel",
+    "turnTimerValue",
+  ].map((id) => [id, document.getElementById(id)]));
+  els.matchSidebar = document.querySelector(".match-sidebar");
+
+  const profile = {
+    name: readStorage("overreachPlayerName") || "",
+    localP1: readStorage("overreachLocalP1") || "Player 1",
+    localP2: readStorage("overreachLocalP2") || "Player 2",
   };
 
-  let state = createState("ai");
-  let toastTimer = null;
-  let turnTimerId = null;
-  let turnTimerKey = null;
-  let turnTimerDeadline = 0;
-  let timerEnabled = true;
   const online = {
     client: null,
     configError: "",
     initPromise: null,
-    isConfigured: false,
     isReady: false,
-    isSaving: false,
     playerId: getOrCreatePlayerId(),
+    pollTimer: null,
+    refreshBusy: false,
     room: null,
     roomId: "",
-    rev: 0,
-    seat: null,
-    subscription: null,
-  };
-  const defaultNames = {
-    ai: { p1: "You", p2: "AI Rival" },
-    local: { p1: "Player 1", p2: "Player 2" },
-    online: { p1: "Player 1", p2: "Player 2" },
-  };
-  const namesByMode = {
-    ai: { ...defaultNames.ai },
-    local: { ...defaultNames.local },
-    online: { ...defaultNames.online },
+    secret: "",
+    failures: 0,
   };
 
-  function createState(mode) {
+  let appMode = "online";
+  let timerEnabled = readStorage("overreachTimer") !== "off";
+  let localState = createLocalState("ai");
+  let selectedCard = null;
+  let toastTimer = null;
+  let actionBusy = false;
+  let inviteCode = cleanRoomId(new URLSearchParams(window.location.search).get("room"));
+  let clockTimer = null;
+
+  function createLocalState(mode) {
     return {
       mode,
       phase: "setup",
       scores: { p1: 0, p2: 0 },
       roundWins: { p1: 0, p2: 0 },
-      hands: {
-        p1: [...CARD_VALUES],
-        p2: [...CARD_VALUES],
-      },
+      hands: { p1: [...CARD_VALUES], p2: [...CARD_VALUES] },
       pending: { p1: null, p2: null },
       history: [],
       last: null,
+      turnStartedAt: null,
+      revealUntil: null,
+      timerEnabled,
     };
   }
 
-  function playerNames() {
-    const defaults = defaultNames[state.mode];
-    const names = namesByMode[state.mode];
+  function localNames() {
+    if (localState.mode === "ai") {
+      return { p1: cleanName(profile.name, "You"), p2: "AI Rival" };
+    }
     return {
-      p1: displayName(names.p1, defaults.p1),
-      p2: displayName(names.p2, defaults.p2),
+      p1: cleanName(profile.localP1, "Player 1"),
+      p2: cleanName(profile.localP2, "Player 2"),
     };
   }
 
-  function displayName(value, fallback) {
-    const cleaned = value.trim();
-    return cleaned || fallback;
+  function cleanName(value, fallback = "Player") {
+    return String(value || "").trim().slice(0, 18) || fallback;
   }
 
-  function isYou(name) {
-    return name.trim().toLowerCase() === "you";
-  }
-
-  function possessive(name) {
-    return isYou(name) ? "Your" : `${name}'s`;
-  }
-
-  function winPhrase(name) {
-    return `${name} ${isYou(name) ? "win" : "wins"}`;
-  }
-
-  function scorePhrase(name) {
-    return `${name} ${isYou(name) ? "score" : "scores"}`;
-  }
-
-  function updateName(player, value) {
-    namesByMode[state.mode][player] = value.slice(0, 18);
-    if (state.mode === "online" && online.room && online.seat === player) {
-      saveOnlineRoom((room) => {
-        const players = normalizePlayers(room.players);
-        players[player] = {
-          ...(players[player] || {}),
-          id: online.playerId,
-          name: displayName(value, defaultNames.online[player]),
-        };
-        return {
-          ...room,
-          players,
-          updatedAt: Date.now(),
-        };
-      });
-    }
-    render();
-  }
-
-  function currentRoundNumber() {
-    return Math.min(state.history.length + 1, MAX_ROUNDS);
-  }
-
-  function setMode(mode) {
-    if (state.mode === mode) return;
-    stopTurnTimer();
-    state = createState(mode);
-    if (mode === "online") {
-      showToast("Online rooms selected.");
-      prepareOnlineMode();
-    } else {
-      leaveOnlineRoom(false);
-      showToast(mode === "ai" ? "AI duel started." : "Pass-and-play started.");
-    }
-    render();
-  }
-
-  function startNewGame() {
-    const mode = state.mode;
-    stopTurnTimer();
-    if (mode === "online" && online.room) {
-      resetOnlineRoom();
-      return;
-    }
-    state = createState(mode);
-    showToast("New game ready.");
-    render();
-  }
-
-  function startGame() {
-    if (state.mode === "online") {
-      startOnlineGame();
-      return;
-    }
-    if (state.phase !== "setup") return;
-    state.phase = state.mode === "ai" ? "select" : "p1-select";
-    showToast(timerEnabled
-      ? "Game started. 15 seconds per pick."
-      : "Game started. Timer off.");
-    render();
-  }
-
-  function removeCard(hand, card) {
-    return hand.filter((value) => value !== card);
-  }
-
-  function handleCardPick(card) {
-    if (state.phase === "gameover" || state.phase === "between-rounds") return;
-    if (!activePlayer()) return;
-
-    stopTurnTimer();
-
-    if (state.mode === "online") {
-      playOnlineCard(card);
-      return;
-    }
-
-    if (state.mode === "ai") {
-      const aiCard = chooseAiCard(state.hands.p2, state.hands.p1);
-      playRound(card, aiCard);
-      return;
-    }
-
-    if (state.phase === "p1-select") {
-      state.pending.p1 = card;
-      state.phase = "pass-to-p2";
-      render();
-      return;
-    }
-
-    if (state.phase === "p2-select") {
-      state.pending.p2 = card;
-      playRound(state.pending.p1, state.pending.p2);
+  function readStorage(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
     }
   }
 
-  function playRound(p1Card, p2Card) {
-    const names = playerNames();
-    const result = resolveRound(p1Card, p2Card);
-    const round = state.history.length + 1;
-    const entry = {
-      round,
-      p1Card,
-      p2Card,
-      result,
-      summary: summarizeRound(result, p1Card, p2Card, names),
-    };
-
-    state.scores.p1 += result.p1Points;
-    state.scores.p2 += result.p2Points;
-    if (result.winner) state.roundWins[result.winner] += 1;
-
-    state.hands.p1 = removeCard(state.hands.p1, p1Card);
-    state.hands.p2 = removeCard(state.hands.p2, p2Card);
-    state.pending = { p1: null, p2: null };
-    state.last = entry;
-    state.history.unshift(entry);
-    state.phase = state.history.length >= MAX_ROUNDS
-      ? "gameover"
-      : state.mode === "local"
-        ? "between-rounds"
-        : "select";
-
-    render();
-  }
-
-  function summarizeRound(result, p1Card, p2Card, names) {
-    if (!result.winner) return "Same number. Nobody scores.";
-
-    const winnerName = names[result.winner];
-    const higherName = names[result.higherPlayer];
-    const higherCard = result.higherPlayer === "p1" ? p1Card : p2Card;
-
-    if (result.overreach) {
-      return `${possessive(higherName)} ${higherCard} overreached by ${result.gap}. ${scorePhrase(winnerName)} ${result.winningCard}.`;
-    }
-
-    return `${possessive(winnerName)} ${result.winningCard} wins for ${result.winningCard}.`;
-  }
-
-  function advanceLocalRound() {
-    if (state.mode === "online") {
-      advanceOnlineRound();
-      return;
-    }
-    state.phase = "pass-to-p1";
-    render();
-  }
-
-  function continuePrivacy() {
-    if (state.phase === "pass-to-p2") {
-      state.phase = "p2-select";
-    } else if (state.phase === "pass-to-p1") {
-      state.phase = "p1-select";
-    }
-    render();
-  }
-
-  function turnKey() {
-    const active = activePlayer();
-    if (!active) return null;
-    return [
-      state.mode,
-      online.roomId || "local",
-      state.phase,
-      state.history.length,
-      state.pending.p1 ?? "none",
-      onlineChoice(active)?.commit ?? "open",
-      state.hands[active].join("-"),
-    ].join(":");
-  }
-
-  function manageTurnTimer() {
-    const active = activePlayer();
-    const key = turnKey();
-
-    if (!timerEnabled) {
-      stopTurnTimer();
-      renderTurnTimer(null);
-      return;
-    }
-
-    if (!active || !key) {
-      stopTurnTimer();
-      renderTurnTimer(null);
-      return;
-    }
-
-    if (turnTimerKey !== key) {
-      startTurnTimer(key, activeTurnDeadline());
-    }
-
-    updateTurnTimer();
-  }
-
-  function startTurnTimer(key, deadline = Date.now() + TURN_SECONDS * 1000) {
-    stopTurnTimer();
-    turnTimerKey = key;
-    turnTimerDeadline = deadline;
-    turnTimerId = setInterval(updateTurnTimer, 250);
-  }
-
-  function stopTurnTimer() {
-    if (turnTimerId) {
-      clearInterval(turnTimerId);
-      turnTimerId = null;
-    }
-    turnTimerKey = null;
-    turnTimerDeadline = 0;
-  }
-
-  function updateTurnTimer() {
-    if (!timerEnabled) {
-      stopTurnTimer();
-      renderTurnTimer(null);
-      return;
-    }
-
-    const active = activePlayer();
-    const key = turnKey();
-
-    if (!active || key !== turnTimerKey) {
-      manageTurnTimer();
-      return;
-    }
-
-    const remainingMs = turnTimerDeadline - Date.now();
-    const secondsLeft = Math.max(0, Math.ceil(remainingMs / 1000));
-    renderTurnTimer(active, secondsLeft);
-
-    if (remainingMs <= 0) {
-      stopTurnTimer();
-      autoPlayTimedOutTurn(active);
+  function writeStorage(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // The game still works when storage is unavailable.
     }
   }
 
-  function activeTurnDeadline() {
-    if (state.mode === "online" && online.room?.timerEnabled && online.room.turnStartedAt) {
-      return online.room.turnStartedAt + TURN_SECONDS * 1000;
-    }
-    return Date.now() + TURN_SECONDS * 1000;
-  }
-
-  function renderTurnTimer(active, secondsLeft = TURN_SECONDS) {
-    if (!active || !timerEnabled) {
-      els.turnTimer.classList.add("is-hidden");
-      return;
-    }
-
-    const names = playerNames();
-    const name = names[active];
-    const ratio = Math.max(0, Math.min(1, secondsLeft / TURN_SECONDS));
-    els.turnTimer.classList.remove("is-hidden");
-    els.turnTimer.classList.toggle("is-urgent", secondsLeft <= 5);
-    els.turnTimerLabel.textContent = isYou(name)
-      ? "You have 15 seconds"
-      : `${name} has 15 seconds`;
-    els.turnTimerValue.textContent = String(secondsLeft);
-    els.turnTimerFill.style.transform = `scaleX(${ratio})`;
-  }
-
-  function autoPlayTimedOutTurn(active) {
-    if (!timerEnabled) return;
-    if (active !== activePlayer()) return;
-
-    const hand = state.hands[active];
-    if (!hand.length) return;
-
-    const card = randomItem(hand);
-    const name = playerNames()[active];
-    showToast(isYou(name)
-      ? `Time ran out. You played ${card}.`
-      : `${name} ran out of time and played ${card}.`);
-    handleCardPick(card);
-  }
-
-  function finalMessage() {
-    const names = playerNames();
-    if (state.scores.p1 > state.scores.p2) {
-      return `${winPhrase(names.p1)} by score, ${state.scores.p1}-${state.scores.p2}.`;
-    }
-    if (state.scores.p2 > state.scores.p1) {
-      return `${winPhrase(names.p2)} by score, ${state.scores.p2}-${state.scores.p1}.`;
-    }
-    if (state.roundWins.p1 > state.roundWins.p2) {
-      return `${winPhrase(names.p1)} the score tie on rounds, ${state.roundWins.p1}-${state.roundWins.p2}.`;
-    }
-    if (state.roundWins.p2 > state.roundWins.p1) {
-      return `${winPhrase(names.p2)} the score tie on rounds, ${state.roundWins.p2}-${state.roundWins.p1}.`;
-    }
-    return "Dead even after score and round wins.";
-  }
-
-  function render() {
-    const names = playerNames();
-    const round = currentRoundNumber();
-
-    renderModeButtons();
-    renderOnlinePanel();
-    renderTimerToggle();
-    renderNames(names);
-    renderNameInputs();
-    renderScoreboard(round);
-    renderSlots();
-    renderMiniHands();
-    renderActiveHand();
-    renderHistory();
-    renderPrompt(names);
-    renderPrivacy(names);
-    manageTurnTimer();
-  }
-
-  function renderModeButtons() {
-    const aiActive = state.mode === "ai";
-    const localActive = state.mode === "local";
-    const onlineActive = state.mode === "online";
-    els.modeAiButton.classList.toggle("is-active", aiActive);
-    els.modeLocalButton.classList.toggle("is-active", localActive);
-    els.modeOnlineButton.classList.toggle("is-active", onlineActive);
-    els.modeAiButton.setAttribute("aria-pressed", String(aiActive));
-    els.modeLocalButton.setAttribute("aria-pressed", String(localActive));
-    els.modeOnlineButton.setAttribute("aria-pressed", String(onlineActive));
-  }
-
-  function renderTimerToggle() {
-    els.timerToggle.checked = state.mode === "online" && online.room
-      ? Boolean(online.room.timerEnabled)
-      : timerEnabled;
-  }
-
-  function renderOnlinePanel() {
-    const isOnline = state.mode === "online";
-    els.onlinePanel.classList.toggle("is-hidden", !isOnline);
-    if (!isOnline) return;
-
-    const room = online.room;
-    const hasRoom = Boolean(room && online.roomId);
-    const canUseOnline = online.isReady;
-    const bothPlayers = Boolean(room?.players?.p1?.id && room?.players?.p2?.id);
-    const inviteUrl = hasRoom ? inviteLink(online.roomId) : "";
-
-    els.createRoomButton.disabled = !canUseOnline;
-    els.joinRoomButton.disabled = !canUseOnline;
-    els.copyInviteButton.classList.toggle("is-hidden", !hasRoom);
-    els.roomCodePill.classList.toggle("is-hidden", !hasRoom);
-    els.roomCodeText.textContent = online.roomId || "------";
-
-    if (!online.isConfigured) {
-      els.onlineStatusText.textContent = "Supabase is not connected yet.";
-      els.onlineHelpText.textContent = online.configError || "Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel, then redeploy.";
-      return;
-    }
-
-    if (!hasRoom) {
-      els.onlineStatusText.textContent = "Create a room, then send the invite link.";
-      els.onlineHelpText.textContent = "Your friend joins as Player 2 on their phone. Both picks lock before reveal.";
-      return;
-    }
-
-    if (!bothPlayers) {
-      els.onlineStatusText.textContent = `Room ${online.roomId} is waiting for Player 2.`;
-      els.onlineHelpText.textContent = `Send ${inviteUrl}`;
-      return;
-    }
-
-    els.onlineStatusText.textContent = online.seat
-      ? `You are ${online.seat === "p1" ? "Player 1" : "Player 2"} in room ${online.roomId}.`
-      : `Watching room ${online.roomId}.`;
-    els.onlineHelpText.textContent = room.phase === "lobby"
-      ? "Both players are in. Start when ready."
-      : "Each phone only controls its own hand.";
-  }
-
-  function renderNames(names) {
-    els.p1NameScore.textContent = names.p1;
-    els.p2NameScore.textContent = names.p2;
-    els.p1RailLabel.textContent = names.p1;
-    els.p2RailLabel.textContent = names.p2;
-  }
-
-  function renderNameInputs() {
-    const names = namesByMode[state.mode];
-    if (document.activeElement !== els.p1NameInput) {
-      els.p1NameInput.value = names.p1;
-    }
-    if (document.activeElement !== els.p2NameInput) {
-      els.p2NameInput.value = names.p2;
-    }
-    const onlineRoomActive = state.mode === "online" && Boolean(online.room);
-    els.p1NameInput.disabled = onlineRoomActive && online.seat !== "p1";
-    els.p2NameInput.disabled = onlineRoomActive && online.seat !== "p2";
-  }
-
-  function renderScoreboard(round) {
-    els.p1Score.textContent = String(state.scores.p1);
-    els.p2Score.textContent = String(state.scores.p2);
-    els.p1Wins.textContent = String(state.roundWins.p1);
-    els.p2Wins.textContent = String(state.roundWins.p2);
-    els.roundText.textContent = state.phase === "gameover" ? "Final" : `Round ${round} of ${MAX_ROUNDS}`;
-    els.p1RemainingText.textContent = tokenCountText(state.hands.p1.length);
-    els.p2RemainingText.textContent = tokenCountText(state.hands.p2.length);
-
-    els.roundDots.innerHTML = CARD_VALUES.map((_, index) => {
-      const dotRound = index + 1;
-      const classes = ["round-dot"];
-      if (dotRound <= state.history.length) classes.push("is-done");
-      if (dotRound === round && state.phase !== "gameover") classes.push("is-current");
-      return `<span class="${classes.join(" ")}"></span>`;
-    }).join("");
-  }
-
-  function tokenCountText(count) {
-    return `${count} token${count === 1 ? "" : "s"} left`;
-  }
-
-  function renderSlots() {
-    if (state.mode === "online" && online.room?.phase === "select") {
-      els.p1Slot.innerHTML = onlineSlotMarkup("p1");
-      els.p2Slot.innerHTML = onlineSlotMarkup("p2");
-      return;
-    }
-
-    if (state.last) {
-      els.p1Slot.innerHTML = largeTokenMarkup(state.last.p1Card, "p1");
-      els.p2Slot.innerHTML = largeTokenMarkup(state.last.p2Card, "p2");
-      return;
-    }
-
-    els.p1Slot.innerHTML = '<div class="empty-slot">P1</div>';
-    els.p2Slot.innerHTML = '<div class="card-back">Hidden</div>';
-  }
-
-  function onlineSlotMarkup(player) {
-    const choice = onlineChoice(player);
-    if (choice?.reveal?.card && bothOnlineRevealsReady()) {
-      return largeTokenMarkup(Number(choice.reveal.card), player);
-    }
-    if (choice?.commit) {
-      return '<div class="card-back">Locked</div>';
-    }
-    return player === online.seat
-      ? `<div class="empty-slot">${player === "p1" ? "P1" : "P2"}</div>`
-      : '<div class="card-back">Hidden</div>';
-  }
-
-  function renderMiniHands() {
-    const showP1Numbers = state.mode !== "online" || online.seat === "p1";
-    const showP2Numbers = state.mode === "ai" || (state.mode === "online" && online.seat === "p2");
-    els.p1MiniHand.innerHTML = miniHandMarkup(state.hands.p1, showP1Numbers);
-    els.p2MiniHand.innerHTML = miniHandMarkup(state.hands.p2, showP2Numbers);
-  }
-
-  function miniHandMarkup(hand, showNumbers) {
-    return hand.map((card) => {
-      const label = showNumbers ? card : "";
-      const classes = ["mini-token"];
-      if (!showNumbers) classes.push("is-back");
-      return `<span class="${classes.join(" ")}">${label}</span>`;
-    }).join("");
-  }
-
-  function activePlayer() {
-    if (state.mode === "online") {
-      if (online.room?.phase !== "select") return null;
-      if (!online.seat) return null;
-      return onlineChoice(online.seat)?.commit ? null : online.seat;
-    }
-    if (state.phase === "select") return "p1";
-    if (state.phase === "p1-select") return "p1";
-    if (state.phase === "p2-select") return "p2";
-    return null;
-  }
-
-  function renderActiveHand() {
-    const active = activePlayer();
-    const hand = active ? state.hands[active] : [];
-    els.activeHand.innerHTML = hand.length
-      ? hand.map((card) => cardButtonMarkup(card)).join("")
-      : disabledHandMarkup();
-
-    els.activeHand.querySelectorAll("[data-card]").forEach((button) => {
-      button.addEventListener("click", () => {
-        handleCardPick(Number(button.dataset.card));
-      });
-    });
-  }
-
-  function disabledHandMarkup() {
-    return CARD_VALUES.map((card) => {
-      return cardButtonMarkup(card, true);
-    }).join("");
-  }
-
-  function cardButtonMarkup(card, disabled = false) {
-    const tier = tierFor(card);
-    return `
-      <button
-        class="token-card tier-${tier}"
-        type="button"
-        data-card="${card}"
-        aria-label="Play token ${card}"
-        ${disabled ? "disabled" : ""}
-      >
-        <span class="token-number">
-          ${card}
-          <span class="token-family">${tier}</span>
-        </span>
-        ${pipGridMarkup(card)}
-      </button>
-    `;
-  }
-
-  function largeTokenMarkup(card, owner) {
-    const tier = tierFor(card);
-    return `
-      <div class="large-token tier-${tier}" aria-label="${owner} played ${card}">
-        <span class="token-number">${card}</span>
-        ${pipGridMarkup(card)}
-      </div>
-    `;
-  }
-
-  function pipGridMarkup(card) {
-    return `
-      <span class="pip-grid" aria-hidden="true">
-        ${CARD_VALUES.map((value) => {
-          return `<span class="pip ${value <= card ? "is-on" : ""}"></span>`;
-        }).join("")}
-      </span>
-    `;
-  }
-
-  function renderHistory() {
-    els.historyCount.textContent = `${state.history.length} / ${MAX_ROUNDS}`;
-
-    if (!state.history.length) {
-      els.historyList.innerHTML = '<li class="history-empty">Played rounds will appear here.</li>';
-      return;
-    }
-
-    els.historyList.innerHTML = state.history.map((entry) => {
-      const result = entry.result;
-      const badge = result.winner
-        ? `${result.winner === "p1" ? "P1" : "P2"} +${result.winningCard}`
-        : "Tie";
-      const badgeClasses = ["outcome-badge"];
-      badgeClasses.push(result.winner ? `is-${result.winner}` : "is-tie");
-      if (result.overreach) badgeClasses.push("is-overreach");
-
-      return `
-        <li class="history-item">
-          <div class="history-topline">
-            <span class="rail-label">Round ${entry.round}</span>
-            <span class="${badgeClasses.join(" ")}">${badge}</span>
-          </div>
-          <div class="history-cards">
-            <span class="history-token">${entry.p1Card}</span>
-            <span>vs</span>
-            <span class="history-token">${entry.p2Card}</span>
-          </div>
-          <p>${entry.summary}</p>
-        </li>
-      `;
-    }).join("");
-  }
-
-  function renderPrompt(names) {
-    const onlineLobbyReady = state.mode === "online"
-      && state.phase === "lobby"
-      && Boolean(online.room?.players?.p1?.id && online.room?.players?.p2?.id);
-    els.nextRoundButton.classList.toggle("is-hidden", state.phase !== "between-rounds");
-    els.startGameButton.classList.toggle("is-hidden", state.phase !== "setup" && !onlineLobbyReady);
-
-    if (state.phase === "setup") {
-      els.handOwnerLabel.textContent = "Ready";
-      els.turnPrompt.textContent = state.mode === "online" ? "Create or join a room" : "Enter names, then start";
-      els.phasePill.textContent = timerEnabled ? "15 seconds per pick" : "Timer off";
-      els.resultKicker.textContent = "Setup";
-      els.resultText.textContent = state.mode === "online"
-        ? "Online rooms let two phones pick at the same time."
-        : "Start when both players are ready.";
-      return;
-    }
-
-    if (state.mode === "online" && state.phase === "lobby") {
-      const hasP2 = Boolean(online.room?.players?.p2?.id);
-      els.handOwnerLabel.textContent = "Online room";
-      els.turnPrompt.textContent = hasP2 ? "Both players joined" : "Waiting for Player 2";
-      els.phasePill.textContent = online.room?.timerEnabled ? "15 seconds per pick" : "Timer off";
-      els.resultKicker.textContent = hasP2 ? "Ready" : "Invite";
-      els.resultText.textContent = hasP2
-        ? "Start when both players are ready."
-        : "Send the room link to your friend.";
-      return;
-    }
-
-    if (state.phase === "gameover") {
-      els.handOwnerLabel.textContent = "Game over";
-      els.turnPrompt.textContent = finalMessage();
-      els.phasePill.textContent = "New game resets the board";
-      els.resultKicker.textContent = "Final";
-      els.resultText.textContent = finalMessage();
-      return;
-    }
-
-    if (state.phase === "between-rounds") {
-      els.handOwnerLabel.textContent = "Round complete";
-      els.turnPrompt.textContent = state.mode === "online"
-        ? "Next round when both players are ready"
-        : "Pass back for the next pick";
-      els.phasePill.textContent = "Both tokens discarded";
-      els.resultKicker.textContent = state.last?.result.overreach ? "Overreach" : "Resolved";
-      els.resultText.textContent = state.last?.summary ?? "Round resolved.";
-      return;
-    }
-
-    if (state.phase === "pass-to-p2" || state.phase === "pass-to-p1") {
-      els.handOwnerLabel.textContent = "Hidden";
-      els.turnPrompt.textContent = "Pass the device";
-      els.phasePill.textContent = "Secret pick";
-      return;
-    }
-
-    const active = activePlayer();
-    if (state.mode === "online" && !active) {
-      const other = online.seat === "p1" ? "p2" : "p1";
-      els.handOwnerLabel.textContent = "Locked";
-      els.turnPrompt.textContent = onlineChoice(online.seat)?.commit
-        ? `Waiting for ${names[other]}`
-        : "Waiting for your seat";
-      els.phasePill.textContent = "Secret pick";
-      els.resultKicker.textContent = "Locked";
-      els.resultText.textContent = "Your token is locked. The round reveals after both players choose.";
-      return;
-    }
-
-    els.handOwnerLabel.textContent = `${possessive(names[active])} hand`;
-    els.turnPrompt.textContent = isYou(names[active])
-      ? "Choose your token"
-      : `${names[active]}, choose a token`;
-    els.phasePill.textContent = active === "p1" && state.mode === "ai"
-      ? "The AI picks at the same time"
-      : "Keep the pick secret";
-
-    if (state.last) {
-      els.resultKicker.textContent = state.last.result.overreach ? "Overreach" : "Resolved";
-      els.resultText.textContent = state.last.summary;
-    } else {
-      els.resultKicker.textContent = "Ready";
-      els.resultText.textContent = "Pick a token from your hand.";
-    }
-  }
-
-  function renderPrivacy(names) {
-    const needsPrivacy = state.mode !== "online"
-      && (state.phase === "pass-to-p2" || state.phase === "pass-to-p1");
-    els.privacyScreen.classList.toggle("is-hidden", !needsPrivacy);
-    if (!needsPrivacy) return;
-
-    const target = state.phase === "pass-to-p2" ? "p2" : "p1";
-    els.privacyTitle.textContent = `Pass to ${names[target]}`;
-    els.privacyText.textContent = `${names[target]} chooses next. The previous pick is hidden.`;
-  }
-
-  function showToast(message) {
-    clearTimeout(toastTimer);
-    els.toast.textContent = message;
-    els.toast.classList.add("is-visible");
-    toastTimer = setTimeout(() => {
-      els.toast.classList.remove("is-visible");
-    }, 1800);
-  }
-
-  function setTimerEnabled(enabled) {
-    if (state.mode === "online" && online.room) {
-      saveOnlineRoom((room) => ({
-        ...room,
-        timerEnabled: enabled,
-        updatedAt: Date.now(),
-      }));
-      showToast(enabled ? "Room timer on." : "Room timer off.");
-      return;
-    }
-
-    timerEnabled = enabled;
-    if (!timerEnabled) {
-      stopTurnTimer();
-      renderTurnTimer(null);
-    }
-    showToast(timerEnabled ? "Timer on." : "Timer off.");
-    render();
-  }
-
-  function openRules() {
-    if (typeof els.rulesDialog.showModal === "function") {
-      els.rulesDialog.showModal();
-    } else {
-      els.rulesDialog.setAttribute("open", "");
-    }
-  }
-
-  function closeRules() {
-    if (typeof els.rulesDialog.close === "function") {
-      els.rulesDialog.close();
-    } else {
-      els.rulesDialog.removeAttribute("open");
+  function removeStorage(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore storage restrictions.
     }
   }
 
   function getOrCreatePlayerId() {
-    const key = "overreachPlayerId";
-    try {
-      const existing = window.localStorage.getItem(key);
-      if (existing) return existing;
-      const id = crypto.randomUUID ? crypto.randomUUID() : randomSalt();
-      window.localStorage.setItem(key, id);
-      return id;
-    } catch {
-      return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-    }
+    const existing = readStorage("overreachPlayerId");
+    if (existing) return existing;
+    const id = crypto.randomUUID ? crypto.randomUUID() : randomSecret();
+    writeStorage("overreachPlayerId", id);
+    return id;
   }
 
-  async function prepareOnlineMode() {
-    try {
-      await ensureSupabaseClient();
-      if (!online.room) {
-        showToast("Supabase connected.");
-      }
-      render();
-    } catch (error) {
-      online.isReady = false;
-      online.configError = error.message;
-      showToast("Online rooms need Supabase setup.");
-      render();
-    }
+  function credentialKey(roomId) {
+    return `overreachRoomSecret:${roomId}`;
   }
 
-  async function ensureSupabaseClient() {
-    if (online.client) return online.client;
-    if (online.initPromise) return online.initPromise;
-
-    online.initPromise = (async () => {
-      if (!window.supabase?.createClient) {
-        online.isConfigured = false;
-        throw new Error("Supabase client did not load. Check the CDN script or network connection.");
-      }
-
-      const config = await loadSupabaseConfig();
-      if (!config.url || !config.anonKey) {
-        online.isConfigured = false;
-        throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY.");
-      }
-
-      online.client = window.supabase.createClient(config.url, config.anonKey);
-      online.isConfigured = true;
-      online.isReady = true;
-      online.configError = "";
-      return online.client;
-    })();
-
-    return online.initPromise;
-  }
-
-  async function loadSupabaseConfig() {
-    if (window.OVERREACH_SUPABASE_CONFIG) {
-      return window.OVERREACH_SUPABASE_CONFIG;
-    }
-
-    const response = await fetch("/api/supabase-config", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Could not read Supabase config from Vercel.");
-    }
-
-    const payload = await response.json();
-    if (!payload.configured) {
-      return {};
-    }
-
-    return payload.config;
-  }
-
-  async function createOnlineRoom() {
-    try {
-      const client = await ensureSupabaseClient();
-      const name = displayName(namesByMode.online.p1, defaultNames.online.p1);
-
-      for (let attempt = 0; attempt < 4; attempt += 1) {
-        const roomId = generateRoomId();
-        const room = createOnlineRoomState({
-          p1: { id: online.playerId, name },
-          p2: null,
-        });
-
-        const { data, error } = await client
-          .from(ROOM_TABLE)
-          .insert({ id: roomId, state: room, rev: 0 })
-          .select("id, state, rev")
-          .single();
-
-        if (!error && data) {
-          online.roomId = roomId;
-          online.seat = "p1";
-          updateRoomUrl(roomId);
-          await connectOnlineRoom(roomId, data);
-          showToast(`Room ${roomId} created.`);
-          return;
-        }
-
-        if (!isDuplicateRoomError(error)) {
-          throw error;
-        }
-      }
-
-      throw new Error("Could not create a unique room code.");
-    } catch (error) {
-      console.error(error);
-      showToast("Could not create room. Check Supabase setup.");
-      render();
-    }
-  }
-
-  async function joinOnlineRoom(rawRoomId) {
-    const roomId = cleanRoomId(rawRoomId);
-    if (!roomId) {
-      showToast("Enter a room code.");
-      return;
-    }
-
-    try {
-      await ensureSupabaseClient();
-      const row = await fetchOnlineRoom(roomId);
-      if (!row) {
-        showToast("Room not found.");
-        return;
-      }
-
-      const room = normalizeOnlineRoom(row.state);
-      const existingSeat = seatForPlayer(room);
-      const openSeat = existingSeat || (!room.players.p1?.id ? "p1" : !room.players.p2?.id ? "p2" : null);
-
-      if (!openSeat) {
-        showToast("That room is full.");
-        return;
-      }
-
-      online.roomId = roomId;
-      online.room = room;
-      online.rev = row.rev;
-      online.seat = openSeat;
-
-      if (!existingSeat) {
-        await saveOnlineRoom((current) => {
-          const players = normalizePlayers(current.players);
-          players[openSeat] = {
-            id: online.playerId,
-            name: displayName(namesByMode.online[openSeat], defaultNames.online[openSeat]),
-          };
-          return {
-            ...current,
-            players,
-            updatedAt: Date.now(),
-          };
-        });
-      }
-
-      updateRoomUrl(roomId);
-      await connectOnlineRoom(roomId);
-      showToast(`Joined room ${roomId}.`);
-    } catch (error) {
-      console.error(error);
-      showToast("Could not join room. Check Supabase setup.");
-      render();
-    }
-  }
-
-  async function connectOnlineRoom(roomId, initialRow = null) {
-    const client = await ensureSupabaseClient();
-    leaveOnlineRoom(false);
-    online.roomId = roomId;
-
-    if (initialRow) {
-      applyOnlineRow(initialRow);
-    } else {
-      const row = await fetchOnlineRoom(roomId);
-      if (row) applyOnlineRow(row);
-    }
-
-    online.subscription = client
-      .channel(`overreach-room-${roomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: ROOM_TABLE,
-          filter: `id=eq.${roomId}`,
-        },
-        (payload) => {
-          if (payload.new) applyOnlineRow(payload.new);
-        }
-      )
-      .subscribe();
-  }
-
-  function leaveOnlineRoom(clearRoom = true) {
-    if (online.subscription && online.client) {
-      online.client.removeChannel(online.subscription);
-    }
-    online.subscription = null;
-    if (!clearRoom) return;
-    online.room = null;
-    online.roomId = "";
-    online.rev = 0;
-    online.seat = null;
-  }
-
-  function applyOnlineRow(row) {
-    online.rev = Number(row.rev || 0);
-    online.room = normalizeOnlineRoom(row.state);
-    online.seat = seatForPlayer(online.room) || online.seat;
-    syncStateFromOnlineRoom();
-    render();
-    revealOnlineChoiceIfReady().catch(console.error);
-    resolveOnlineRoundIfReady().catch(console.error);
-  }
-
-  function syncStateFromOnlineRoom() {
-    if (!online.room) return;
-
-    const room = normalizeOnlineRoom(online.room);
-    timerEnabled = Boolean(room.timerEnabled);
-    namesByMode.online = {
-      p1: room.players.p1?.name || defaultNames.online.p1,
-      p2: room.players.p2?.name || defaultNames.online.p2,
-    };
-
-    state = {
-      mode: "online",
-      phase: room.phase || "lobby",
-      scores: room.scores,
-      roundWins: room.roundWins,
-      hands: room.hands,
-      pending: { p1: null, p2: null },
-      history: room.history,
-      last: room.last,
-    };
-  }
-
-  async function fetchOnlineRoom(roomId) {
-    const client = await ensureSupabaseClient();
-    const { data, error } = await client
-      .from(ROOM_TABLE)
-      .select("id, state, rev")
-      .eq("id", roomId)
-      .maybeSingle();
-
-    if (error) throw error;
-    return data;
-  }
-
-  async function saveOnlineRoom(mutator) {
-    if (!online.roomId) return null;
-    const client = await ensureSupabaseClient();
-
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const currentRow = await fetchOnlineRoom(online.roomId);
-      if (!currentRow) throw new Error("Room no longer exists.");
-
-      const currentRoom = normalizeOnlineRoom(currentRow.state);
-      const nextRoom = mutator(currentRoom);
-      if (!nextRoom) return null;
-
-      const nextRev = Number(currentRow.rev || 0) + 1;
-      const { data, error } = await client
-        .from(ROOM_TABLE)
-        .update({
-          state: normalizeOnlineRoom(nextRoom),
-          rev: nextRev,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", online.roomId)
-        .eq("rev", currentRow.rev)
-        .select("id, state, rev")
-        .maybeSingle();
-
-      if (error) throw error;
-      if (data) {
-        applyOnlineRow(data);
-        return data;
-      }
-    }
-
-    throw new Error("Room update conflict. Try again.");
-  }
-
-  function createOnlineRoomState(players) {
-    return {
-      version: 1,
-      phase: "lobby",
-      timerEnabled,
-      turnStartedAt: null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      players,
-      scores: { p1: 0, p2: 0 },
-      roundWins: { p1: 0, p2: 0 },
-      hands: {
-        p1: [...CARD_VALUES],
-        p2: [...CARD_VALUES],
-      },
-      choices: {},
-      history: [],
-      last: null,
-    };
-  }
-
-  function resetOnlineRoom() {
-    if (!online.room) return;
-    saveOnlineRoom((room) => {
-      const fresh = createOnlineRoomState(normalizePlayers(room.players));
-      return {
-        ...fresh,
-        phase: room.players.p1?.id && room.players.p2?.id ? "lobby" : "lobby",
-        timerEnabled: room.timerEnabled,
-        createdAt: room.createdAt || Date.now(),
-      };
-    });
-    showToast("Online room reset.");
-  }
-
-  function startOnlineGame() {
-    if (!online.room) return;
-    saveOnlineRoom((room) => {
-      if (room.phase !== "lobby") return null;
-      if (!room.players.p1?.id || !room.players.p2?.id) return null;
-      return {
-        ...room,
-        phase: "select",
-        choices: {},
-        last: null,
-        turnStartedAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-    });
-  }
-
-  function advanceOnlineRound() {
-    if (!online.room) return;
-    saveOnlineRoom((room) => {
-      if (room.phase !== "between-rounds") return null;
-      return {
-        ...room,
-        phase: "select",
-        choices: {},
-        last: null,
-        turnStartedAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-    });
-  }
-
-  async function playOnlineCard(card) {
-    if (!online.room || !online.seat) return;
-    if (online.room.phase !== "select") return;
-    if (onlineChoice(online.seat)?.commit) return;
-    if (!state.hands[online.seat].includes(card)) return;
-
-    const round = state.history.length + 1;
-    const salt = randomSalt();
-    const commit = await hashOnlinePick(online.roomId, round, online.seat, card, salt);
-    storeLocalReveal(round, online.seat, { card, salt, commit });
-
-    await saveOnlineRoom((room) => {
-      if (room.phase !== "select") return null;
-      const choices = normalizeChoices(room.choices);
-      if (choices[online.seat]?.commit) return null;
-      choices[online.seat] = {
-        commit,
-        pickedAt: Date.now(),
-        playerId: online.playerId,
-      };
-      return {
-        ...room,
-        choices,
-        updatedAt: Date.now(),
-      };
-    });
-
-    showToast(`Token ${card} locked.`);
-  }
-
-  async function revealOnlineChoiceIfReady() {
-    if (!online.room || !online.seat) return;
-    if (!bothOnlineCommitsReady()) return;
-
-    const choice = onlineChoice(online.seat);
-    if (!choice?.commit || choice.reveal) return;
-
-    const reveal = readLocalReveal(state.history.length + 1, online.seat);
-    if (!reveal || reveal.commit !== choice.commit) return;
-
-    await saveOnlineRoom((room) => {
-      if (!bothCommitsReady(room)) return null;
-      const choices = normalizeChoices(room.choices);
-      if (!choices[online.seat]?.commit || choices[online.seat].reveal) return null;
-      choices[online.seat] = {
-        ...choices[online.seat],
-        reveal: {
-          card: reveal.card,
-          salt: reveal.salt,
-        },
-      };
-      return {
-        ...room,
-        choices,
-        updatedAt: Date.now(),
-      };
-    });
-  }
-
-  async function resolveOnlineRoundIfReady() {
-    if (!online.room || online.room.phase !== "select") return;
-    if (!bothOnlineRevealsReady()) return;
-
-    await saveOnlineRoom((room) => {
-      if (room.phase !== "select" || !bothRevealsReady(room)) return null;
-
-      const p1Card = Number(room.choices.p1.reveal.card);
-      const p2Card = Number(room.choices.p2.reveal.card);
-      const result = resolveRound(p1Card, p2Card);
-      const names = {
-        p1: room.players.p1?.name || defaultNames.online.p1,
-        p2: room.players.p2?.name || defaultNames.online.p2,
-      };
-      const entry = {
-        round: room.history.length + 1,
-        p1Card,
-        p2Card,
-        result,
-        summary: summarizeRound(result, p1Card, p2Card, names),
-      };
-      const history = [entry, ...room.history];
-      const scores = {
-        p1: room.scores.p1 + result.p1Points,
-        p2: room.scores.p2 + result.p2Points,
-      };
-      const roundWins = { ...room.roundWins };
-      if (result.winner) roundWins[result.winner] += 1;
-
-      return {
-        ...room,
-        phase: history.length >= MAX_ROUNDS ? "gameover" : "between-rounds",
-        scores,
-        roundWins,
-        hands: {
-          p1: removeCard(room.hands.p1, p1Card),
-          p2: removeCard(room.hands.p2, p2Card),
-        },
-        choices: {},
-        history,
-        last: entry,
-        turnStartedAt: null,
-        updatedAt: Date.now(),
-      };
-    });
-  }
-
-  function normalizeOnlineRoom(room) {
-    return {
-      version: 1,
-      phase: room?.phase || "lobby",
-      timerEnabled: room?.timerEnabled !== false,
-      turnStartedAt: room?.turnStartedAt || null,
-      createdAt: room?.createdAt || Date.now(),
-      updatedAt: room?.updatedAt || Date.now(),
-      players: normalizePlayers(room?.players),
-      scores: normalizeScorePair(room?.scores),
-      roundWins: normalizeScorePair(room?.roundWins),
-      hands: {
-        p1: normalizeHand(room?.hands?.p1),
-        p2: normalizeHand(room?.hands?.p2),
-      },
-      choices: normalizeChoices(room?.choices),
-      history: normalizeHistory(room?.history),
-      last: room?.last || null,
-    };
-  }
-
-  function normalizePlayers(players = {}) {
-    return {
-      p1: players.p1 || null,
-      p2: players.p2 || null,
-    };
-  }
-
-  function normalizeScorePair(value = {}) {
-    return {
-      p1: Number(value.p1 || 0),
-      p2: Number(value.p2 || 0),
-    };
-  }
-
-  function normalizeHand(hand) {
-    if (!Array.isArray(hand)) return [...CARD_VALUES];
-    return hand.map(Number).filter((card) => CARD_VALUES.includes(card));
-  }
-
-  function normalizeChoices(choices = {}) {
-    return {
-      ...(choices || {}),
-    };
-  }
-
-  function normalizeHistory(history) {
-    if (Array.isArray(history)) return history;
-    if (!history) return [];
-    return Object.values(history);
-  }
-
-  function onlineChoice(player) {
-    if (!player) return null;
-    return online.room?.choices?.[player] || null;
-  }
-
-  function bothOnlineCommitsReady() {
-    return bothCommitsReady(online.room);
-  }
-
-  function bothOnlineRevealsReady() {
-    return bothRevealsReady(online.room);
-  }
-
-  function bothCommitsReady(room) {
-    return Boolean(room?.choices?.p1?.commit && room?.choices?.p2?.commit);
-  }
-
-  function bothRevealsReady(room) {
-    return Boolean(room?.choices?.p1?.reveal?.card && room?.choices?.p2?.reveal?.card);
-  }
-
-  function seatForPlayer(room) {
-    if (room?.players?.p1?.id === online.playerId) return "p1";
-    if (room?.players?.p2?.id === online.playerId) return "p2";
-    return null;
-  }
-
-  function isDuplicateRoomError(error) {
-    return error && String(error.code || error.message).includes("23505");
+  function randomSecret() {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
 
   function cleanRoomId(value) {
@@ -1488,102 +287,969 @@
     return Array.from(values, (value) => ROOM_ID_ALPHABET[value % ROOM_ID_ALPHABET.length]).join("");
   }
 
-  function inviteLink(roomId) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("room", roomId);
-    url.hash = "";
-    return url.toString();
+  function setMode(mode) {
+    if (appMode === mode) return;
+    appMode = mode;
+    selectedCard = null;
+    renderSetup();
+    if (mode === "online") prepareOnline();
+  }
+
+  function render() {
+    const onlineActive = Boolean(online.room);
+    const screen = onlineActive
+      ? online.room.phase === "lobby" || online.room.phase === "countdown" ? "lobby" : "game"
+      : localState.phase === "setup" ? "setup" : "game";
+
+    els.setupView.classList.toggle("is-hidden", screen !== "setup");
+    els.lobbyView.classList.toggle("is-hidden", screen !== "lobby");
+    els.gameView.classList.toggle("is-hidden", screen !== "game");
+    els.leaveButton.classList.toggle("is-hidden", screen === "setup");
+    document.body.classList.toggle("has-game", screen === "game");
+
+    if (screen === "setup") renderSetup();
+    if (screen === "lobby") renderLobby();
+    if (screen === "game") renderGame();
+    renderConnection();
+    renderPrivacy();
+  }
+
+  function renderSetup() {
+    const onlineMode = appMode === "online";
+    const aiMode = appMode === "ai";
+    const localMode = appMode === "local";
+
+    for (const [button, active] of [
+      [els.modeOnlineButton, onlineMode],
+      [els.modeAiButton, aiMode],
+      [els.modeLocalButton, localMode],
+    ]) {
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", String(active));
+    }
+
+    els.onlineSetup.classList.toggle("is-hidden", !onlineMode);
+    els.aiSetup.classList.toggle("is-hidden", !aiMode);
+    els.localSetup.classList.toggle("is-hidden", !localMode);
+    els.p2NameField.classList.toggle("is-hidden", !localMode);
+    els.p1NameLabel.textContent = localMode ? "Player 1 name" : "Your name";
+    els.timerToggle.checked = timerEnabled;
+
+    if (document.activeElement !== els.p1NameInput) {
+      els.p1NameInput.value = localMode ? profile.localP1 : profile.name;
+      els.p1NameInput.placeholder = localMode ? "Player 1" : "Your name";
+    }
+    if (document.activeElement !== els.p2NameInput) els.p2NameInput.value = profile.localP2;
+
+    els.inviteBanner.classList.toggle("is-hidden", !onlineMode || !inviteCode);
+    els.inviteRoomCode.textContent = inviteCode || "------";
+    if (inviteCode && document.activeElement !== els.roomCodeInput) {
+      els.roomCodeInput.value = inviteCode;
+    }
+
+    els.createRoomButton.disabled = !online.isReady || actionBusy;
+    els.joinRoomButton.disabled = !online.isReady || actionBusy;
+    els.onlineStatusText.classList.toggle("is-error", Boolean(online.configError));
+    els.onlineStatusText.textContent = online.configError
+      ? online.configError
+      : online.isReady
+        ? "Online play is ready. Invite links work across phones and computers."
+        : "Connecting to online play...";
+  }
+
+  function renderLobby() {
+    const room = online.room;
+    if (!room) return;
+    const opponentJoined = Boolean(room.opponent?.joined);
+    const countdown = countdownSeconds(room.startsAt);
+
+    els.roomCodeText.textContent = online.roomId;
+    els.lobbyYouName.textContent = room.you?.name || "You";
+    els.lobbyOpponentName.textContent = opponentJoined ? room.opponent.name : "Waiting...";
+    els.lobbyOpponent.classList.toggle("is-ready", opponentJoined);
+    els.lobbyOpponentState.textContent = opponentJoined ? "Ready" : "Joining";
+
+    if (room.phase === "countdown") {
+      els.lobbyStatusText.textContent = countdown > 0
+        ? `Match starts in ${countdown}`
+        : "Starting match...";
+    } else {
+      els.lobbyStatusText.textContent = "Share the link. The match starts when your rival joins.";
+    }
+  }
+
+  function countdownSeconds(value) {
+    if (!value) return 0;
+    return Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 1000));
+  }
+
+  function getViewModel() {
+    if (online.room) {
+      const room = online.room;
+      return {
+        mode: "online",
+        phase: room.phase,
+        round: Number(room.round || 1),
+        timerEnabled: Boolean(room.timerEnabled),
+        roundStartedAt: room.roundStartedAt ? new Date(room.roundStartedAt).getTime() : null,
+        left: room.opponent,
+        right: room.you,
+        leftLabel: room.opponent?.name || "Rival",
+        rightLabel: room.you?.name || "You",
+        rightMeta: "You",
+        history: Array.isArray(room.history) ? room.history : [],
+        last: room.lastRound || null,
+        active: room.phase === "select" && !room.you?.locked,
+        locked: Boolean(room.you?.locked),
+        opponentLocked: Boolean(room.opponent?.locked),
+        rematchYou: Boolean(room.rematch?.you),
+        rematchOpponent: Boolean(room.rematch?.opponent),
+      };
+    }
+
+    const names = localNames();
+    const active = activeLocalPlayer();
+    return {
+      mode: localState.mode,
+      phase: localState.phase,
+      round: localState.phase === "reveal"
+        ? localState.history.length
+        : Math.min(localState.history.length + 1, MAX_ROUNDS),
+      timerEnabled: localState.timerEnabled,
+      roundStartedAt: localState.turnStartedAt,
+      left: {
+        name: names.p2,
+        score: localState.scores.p2,
+        wins: localState.roundWins.p2,
+        hand: localState.hands.p2,
+        locked: Boolean(localState.pending.p2),
+        connected: true,
+        joined: true,
+      },
+      right: {
+        name: names.p1,
+        score: localState.scores.p1,
+        wins: localState.roundWins.p1,
+        hand: localState.hands.p1,
+        locked: Boolean(localState.pending.p1),
+        connected: true,
+        joined: true,
+      },
+      leftLabel: names.p2,
+      rightLabel: names.p1,
+      rightMeta: localState.mode === "ai" ? "You" : "Player 1",
+      history: localState.history,
+      last: localState.last,
+      active: Boolean(active),
+      activePlayer: active,
+      locked: active === "p2" ? Boolean(localState.pending.p2) : Boolean(localState.pending.p1),
+      opponentLocked: active === "p2" ? Boolean(localState.pending.p1) : false,
+      rematchYou: false,
+      rematchOpponent: false,
+    };
+  }
+
+  function renderGame() {
+    const vm = getViewModel();
+    const completed = vm.history.length;
+
+    els.leftPlayerName.textContent = vm.leftLabel;
+    els.rightPlayerName.textContent = vm.rightLabel;
+    els.leftPlayerStatus.textContent = online.room
+      ? vm.left?.joined && !vm.left?.connected ? "Reconnecting" : "Rival"
+      : localState.mode === "local" ? "Player 2" : "AI";
+    els.rightPlayerStatus.textContent = online.room || localState.mode === "ai" ? "You" : "Player 1";
+    els.leftScore.textContent = String(vm.left?.score || 0);
+    els.rightScore.textContent = String(vm.right?.score || 0);
+    els.leftWins.textContent = String(vm.left?.wins || 0);
+    els.rightWins.textContent = String(vm.right?.wins || 0);
+    els.leftAvatar.textContent = avatarLetter(vm.leftLabel);
+    els.rightAvatar.textContent = avatarLetter(vm.rightLabel);
+
+    els.roundText.textContent = vm.phase === "gameover" ? "Final" : `Round ${vm.round} of ${MAX_ROUNDS}`;
+    els.roundDots.innerHTML = CARD_VALUES.map((round) => {
+      const classes = ["round-dot"];
+      if (round <= completed) classes.push("is-complete");
+      if (round === vm.round && vm.phase !== "gameover") classes.push("is-current");
+      return `<span class="${classes.join(" ")}"></span>`;
+    }).join("");
+
+    renderMiniHand(els.leftMiniHand, vm.left?.hand || []);
+    renderMiniHand(els.rightMiniHand, vm.right?.hand || []);
+    els.leftRemainingLabel.textContent = `${vm.leftLabel} has ${(vm.left?.hand || []).length} left`;
+    els.rightRemainingLabel.textContent = `${vm.rightMeta === "You" ? "You have" : `${vm.rightLabel} has`} ${(vm.right?.hand || []).length} left`;
+
+    renderSlots(vm);
+    renderRoundMessage(vm);
+    renderHand(vm);
+    renderHistory(vm);
+    renderTimer(vm);
+    renderGameOver(vm);
+  }
+
+  function avatarLetter(name) {
+    return String(name || "?").trim().charAt(0).toUpperCase() || "?";
+  }
+
+  function renderMiniHand(container, hand) {
+    container.innerHTML = CARD_VALUES.map((card) => {
+      const used = !hand.map(Number).includes(card);
+      return `<span class="mini-token${used ? " is-used" : ""}">${used ? "" : card}</span>`;
+    }).join("");
+  }
+
+  function renderSlots(vm) {
+    const revealing = vm.phase === "reveal" || vm.phase === "gameover";
+    if (revealing && vm.last) {
+      const cards = orientedCards(vm.last);
+      els.leftSlot.innerHTML = playedCardMarkup(cards.left, didSideOverreach(vm.last, "left"));
+      els.rightSlot.innerHTML = playedCardMarkup(cards.right, didSideOverreach(vm.last, "right"));
+      els.leftSlot.className = "played-slot opponent-slot";
+      els.rightSlot.className = "played-slot player-slot";
+      return;
+    }
+
+    const leftLocked = online.room ? vm.opponentLocked : Boolean(localState.pending.p2);
+    const rightLocked = online.room ? vm.locked : Boolean(localState.pending.p1);
+    els.leftSlot.className = `played-slot opponent-slot${leftLocked ? " is-locked" : ""}`;
+    els.rightSlot.className = `played-slot player-slot${rightLocked ? " is-locked" : ""}`;
+    els.leftSlot.innerHTML = `<span>${leftLocked ? "Locked" : "Hidden"}</span>`;
+
+    if (selectedCard && vm.active && (online.room || vm.activePlayer === "p1")) {
+      els.rightSlot.innerHTML = playedCardMarkup(selectedCard, false);
+    } else {
+      els.rightSlot.innerHTML = `<span>${rightLocked ? "Locked" : "Yours"}</span>`;
+    }
+  }
+
+  function playedCardMarkup(card, overreach) {
+    return `<div class="played-card ${tierFor(Number(card))}${overreach ? " is-overreach" : ""}"><strong>${card}</strong><small>${tierFor(Number(card))}</small></div>`;
+  }
+
+  function orientedCards(entry) {
+    const p1 = Number(entry.p1Card);
+    const p2 = Number(entry.p2Card);
+    if (online.room && online.room.seat === "p2") return { left: p1, right: p2 };
+    return { left: p2, right: p1 };
+  }
+
+  function orientedWinner(entry) {
+    const winner = entry?.result?.winner ?? entry?.winner ?? null;
+    if (!winner) return null;
+    if (online.room && online.room.seat === "p2") return winner === "p2" ? "right" : "left";
+    return winner === "p1" ? "right" : "left";
+  }
+
+  function didSideOverreach(entry, side) {
+    const overreach = Boolean(entry?.result?.overreach ?? entry?.overreach);
+    if (!overreach) return false;
+    const winner = orientedWinner(entry);
+    return side !== winner;
+  }
+
+  function renderRoundMessage(vm) {
+    if (vm.phase === "reveal" && vm.last) {
+      const winner = orientedWinner(vm.last);
+      const overreach = Boolean(vm.last?.result?.overreach ?? vm.last?.overreach);
+      const cards = orientedCards(vm.last);
+      els.resultKicker.textContent = overreach ? "Overreach" : winner ? "Round resolved" : "Tie";
+      els.resultTitle.textContent = winner === "right"
+        ? "You take the round"
+        : winner === "left"
+          ? `${vm.leftLabel} takes the round`
+          : "No one scores";
+      els.resultText.textContent = overreach
+        ? `${Math.max(cards.left, cards.right)} reached too far. ${Math.min(cards.left, cards.right)} steals it.`
+        : cards.left === cards.right
+          ? `Both players spent ${cards.left}.`
+          : `The winning token scores its own value.`;
+      return;
+    }
+
+    if (vm.phase === "gameover") {
+      els.resultKicker.textContent = "Match complete";
+      els.resultTitle.textContent = "Nine rounds played";
+      els.resultText.textContent = "Every token was spent exactly once.";
+      return;
+    }
+
+    if (online.room && vm.phase === "select" && vm.locked) {
+      els.resultKicker.textContent = vm.opponentLocked ? "Resolving" : "Locked";
+      els.resultTitle.textContent = vm.opponentLocked ? "Both tokens are in" : `Waiting for ${vm.leftLabel}`;
+      els.resultText.textContent = vm.opponentLocked
+        ? "Revealing the round now."
+        : "Your choice is hidden. You can leave this screen and reconnect safely.";
+      return;
+    }
+
+    if (selectedCard && vm.active) {
+      els.resultKicker.textContent = "Selected";
+      els.resultTitle.textContent = `Token ${selectedCard} is ready`;
+      els.resultText.textContent = selectedCard >= 7
+        ? "Big score, narrow target. Lock it when the read feels right."
+        : selectedCard <= 4
+          ? "Low value, but it can punish a wild reach."
+          : "Steady value against low tokens.";
+      return;
+    }
+
+    const activeName = activeLocalPlayer() === "p2" ? vm.leftLabel : vm.rightMeta === "You" ? "You" : vm.rightLabel;
+    els.resultKicker.textContent = "Your move";
+    els.resultTitle.textContent = `${activeName} choose${activeName === "You" ? "" : "s"} a token`;
+    els.resultText.textContent = "Read what is left, select a token, then lock it in.";
+  }
+
+  function renderHand(vm) {
+    const activePlayer = online.room ? "you" : vm.activePlayer;
+    const hand = online.room
+      ? (vm.right?.hand || [])
+      : activePlayer ? localState.hands[activePlayer] : localState.hands.p1;
+    const canPick = Boolean(vm.active);
+    const owner = online.room
+      ? "Your hand"
+      : localState.mode === "local" && activePlayer === "p2"
+        ? `${vm.leftLabel}'s hand`
+        : localState.mode === "local"
+          ? `${vm.rightLabel}'s hand`
+          : "Your hand";
+
+    els.handEyebrow.textContent = owner;
+    els.handPrompt.textContent = canPick
+      ? selectedCard ? `Token ${selectedCard} selected` : "Select a token"
+      : vm.phase === "reveal" ? "Next round starts automatically" : "Choice locked";
+    els.lockCardButton.classList.toggle("is-hidden", !canPick || !selectedCard);
+    els.lockCardButton.textContent = selectedCard ? `Lock ${selectedCard}` : "Lock token";
+    els.lockCardButton.disabled = actionBusy;
+
+    const numericHand = hand.map(Number);
+    els.activeHand.innerHTML = CARD_VALUES.map((card) => {
+      const available = numericHand.includes(card);
+      const classes = ["token-card", tierFor(card)];
+      if (!available) classes.push("is-used");
+      if (selectedCard === card) classes.push("is-selected");
+      const disabled = !canPick || !available || actionBusy;
+      return `<button class="${classes.join(" ")}" type="button" data-card="${card}" ${disabled ? "disabled" : ""} aria-label="Select token ${card}"><span class="token-number">${available ? card : ""}</span><span class="token-family">${available ? tierFor(card) : "spent"}</span></button>`;
+    }).join("");
+  }
+
+  function renderHistory(vm) {
+    els.historyCount.textContent = `${vm.history.length} / ${MAX_ROUNDS} rounds`;
+    els.historyFabCount.textContent = String(vm.history.length);
+    if (!vm.history.length) {
+      els.historyList.innerHTML = '<li class="history-empty">Revealed rounds appear here. Every spent token stays visible.</li>';
+      return;
+    }
+
+    els.historyList.innerHTML = vm.history.map((entry) => {
+      const cards = orientedCards(entry);
+      const winner = orientedWinner(entry);
+      const overreach = Boolean(entry?.result?.overreach ?? entry?.overreach);
+      const summary = overreach
+        ? `${Math.max(cards.left, cards.right)} overreached; ${Math.min(cards.left, cards.right)} won.`
+        : winner === "right"
+          ? "You won the round."
+          : winner === "left"
+            ? `${vm.leftLabel} won the round.`
+            : "Tie. No points.";
+      return `<li class="history-item"><span class="history-round">R${entry.round}</span><span class="history-token ${tierFor(cards.left)}">${cards.left}</span><span class="history-vs">VS</span><span class="history-token ${tierFor(cards.right)}">${cards.right}</span><span class="history-summary">${escapeHtml(summary)}</span></li>`;
+    }).join("");
+  }
+
+  function renderTimer(vm) {
+    const active = vm.active && vm.timerEnabled && vm.roundStartedAt;
+    els.turnTimer.classList.toggle("is-hidden", !active);
+    if (!active) return;
+    const remainingMs = vm.roundStartedAt + TURN_SECONDS * 1000 - Date.now();
+    const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const ratio = Math.max(0, Math.min(1, remainingMs / (TURN_SECONDS * 1000)));
+    els.turnTimerLabel.textContent = "Time to lock";
+    els.turnTimerValue.textContent = String(seconds);
+    els.turnTimerFill.style.transform = `scaleX(${ratio})`;
+    els.turnTimer.classList.toggle("is-urgent", seconds <= 5);
+  }
+
+  function renderGameOver(vm) {
+    const gameover = vm.phase === "gameover";
+    els.gameOverPanel.classList.toggle("is-hidden", !gameover);
+    if (!gameover) return;
+
+    const rightScore = Number(vm.right?.score || 0);
+    const leftScore = Number(vm.left?.score || 0);
+    const rightWins = Number(vm.right?.wins || 0);
+    const leftWins = Number(vm.left?.wins || 0);
+    const rightWon = rightScore > leftScore || (rightScore === leftScore && rightWins > leftWins);
+    const leftWon = leftScore > rightScore || (leftScore === rightScore && leftWins > rightWins);
+    const youLabel = vm.mode === "local" ? vm.rightLabel : "You";
+
+    els.gameOverTitle.textContent = rightWon ? `${youLabel} win${youLabel === "You" ? "" : "s"}` : leftWon ? `${vm.leftLabel} wins` : "Dead even";
+    els.gameOverText.textContent = rightScore === leftScore && rightWins !== leftWins
+      ? `The ${rightScore}-${leftScore} score tie was decided by rounds won.`
+      : "All nine tokens are gone. The read is complete.";
+    els.finalLeftScore.textContent = String(leftScore);
+    els.finalRightScore.textContent = String(rightScore);
+
+    if (online.room) {
+      els.rematchButton.textContent = vm.rematchYou
+        ? vm.rematchOpponent ? "Starting rematch..." : `Waiting for ${vm.leftLabel}`
+        : vm.rematchOpponent ? `${vm.leftLabel} wants a rematch` : "Rematch";
+      els.rematchButton.disabled = vm.rematchYou || actionBusy;
+    } else {
+      els.rematchButton.textContent = "Play again";
+      els.rematchButton.disabled = false;
+    }
+  }
+
+  function renderConnection() {
+    const reconnecting = Boolean(online.room && online.failures > 0);
+    els.connectionChip.classList.toggle("is-hidden", !reconnecting);
+    els.connectionChip.textContent = online.failures >= 3 ? "Connection lost" : "Reconnecting";
+  }
+
+  function renderPrivacy() {
+    const phase = localState.phase;
+    const visible = !online.room && localState.mode === "local" && (phase === "pass-to-p1" || phase === "pass-to-p2");
+    els.privacyScreen.classList.toggle("is-hidden", !visible);
+    if (!visible) return;
+    const names = localNames();
+    const next = phase === "pass-to-p2" ? names.p2 : names.p1;
+    els.privacyTitle.textContent = `Pass to ${next}`;
+    els.privacyText.textContent = `${next}, tap ready when the previous choice is hidden.`;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function activeLocalPlayer() {
+    if (localState.mode === "ai" && localState.phase === "select") return "p1";
+    if (localState.mode === "local" && localState.phase === "p1-select") return "p1";
+    if (localState.mode === "local" && localState.phase === "p2-select") return "p2";
+    return null;
+  }
+
+  function selectCard(card) {
+    const vm = getViewModel();
+    if (!vm.active || actionBusy) return;
+    const hand = online.room ? vm.right.hand : localState.hands[vm.activePlayer];
+    if (!hand.map(Number).includes(card)) return;
+    selectedCard = card;
+    renderGame();
+  }
+
+  async function lockSelectedCard() {
+    if (!selectedCard || actionBusy) return;
+    const card = selectedCard;
+    actionBusy = true;
+    render();
+    try {
+      if (online.room) {
+        const room = await callRoomRpc("overreach_play_card_v2", { p_card: card });
+        applyOnlineRoom(room);
+      } else {
+        playLocalCard(card);
+      }
+      selectedCard = null;
+    } catch (error) {
+      handleOnlineError(error, "That token could not be locked. Try again.");
+    } finally {
+      actionBusy = false;
+      render();
+    }
+  }
+
+  function playLocalCard(card) {
+    const active = activeLocalPlayer();
+    if (!active || !localState.hands[active].includes(card)) return;
+
+    if (localState.mode === "ai") {
+      const aiCard = chooseAiCard(localState.hands.p2, localState.hands.p1);
+      resolveLocalRound(card, aiCard);
+      return;
+    }
+
+    if (active === "p1") {
+      localState.pending.p1 = card;
+      localState.phase = "pass-to-p2";
+      localState.turnStartedAt = null;
+      selectedCard = null;
+      render();
+      return;
+    }
+
+    localState.pending.p2 = card;
+    resolveLocalRound(localState.pending.p1, card);
+  }
+
+  function resolveLocalRound(p1Card, p2Card) {
+    const result = resolveRound(p1Card, p2Card);
+    const entry = {
+      round: localState.history.length + 1,
+      p1Card,
+      p2Card,
+      result,
+    };
+
+    localState.scores.p1 += result.p1Points;
+    localState.scores.p2 += result.p2Points;
+    if (result.winner) localState.roundWins[result.winner] += 1;
+    localState.hands.p1 = localState.hands.p1.filter((value) => value !== p1Card);
+    localState.hands.p2 = localState.hands.p2.filter((value) => value !== p2Card);
+    localState.pending = { p1: null, p2: null };
+    localState.history.unshift(entry);
+    localState.last = entry;
+    localState.turnStartedAt = null;
+    localState.phase = localState.history.length >= MAX_ROUNDS ? "gameover" : "reveal";
+    localState.revealUntil = Date.now() + REVEAL_MS;
+    selectedCard = null;
+    render();
+  }
+
+  function startLocalGame(mode) {
+    saveNamesFromForm();
+    localState = createLocalState(mode);
+    localState.phase = mode === "ai" ? "select" : "p1-select";
+    localState.turnStartedAt = Date.now();
+    selectedCard = null;
+    render();
+  }
+
+  function continuePrivacy() {
+    if (localState.phase === "pass-to-p2") localState.phase = "p2-select";
+    else if (localState.phase === "pass-to-p1") localState.phase = "p1-select";
+    else return;
+    localState.turnStartedAt = Date.now();
+    render();
+  }
+
+  function tick() {
+    if (online.room?.phase === "countdown") renderLobby();
+    if (!els.gameView.classList.contains("is-hidden")) {
+      const vm = getViewModel();
+      renderTimer(vm);
+      if (!online.room) tickLocalState(vm);
+    }
+  }
+
+  function tickLocalState(vm) {
+    if (localState.phase === "reveal" && Date.now() >= localState.revealUntil) {
+      localState.phase = localState.mode === "ai" ? "select" : "pass-to-p1";
+      localState.turnStartedAt = localState.mode === "ai" ? Date.now() : null;
+      localState.revealUntil = null;
+      render();
+      return;
+    }
+
+    if (!vm.active || !vm.timerEnabled || !vm.roundStartedAt || actionBusy) return;
+    if (Date.now() < vm.roundStartedAt + TURN_SECONDS * 1000) return;
+    const player = vm.activePlayer;
+    const card = randomItem(localState.hands[player]);
+    showToast(`Time expired. Token ${card} was selected.`);
+    selectedCard = card;
+    lockSelectedCard();
+  }
+
+  function saveNamesFromForm() {
+    timerEnabled = Boolean(els.timerToggle.checked);
+    writeStorage("overreachTimer", timerEnabled ? "on" : "off");
+    if (appMode === "local") {
+      profile.localP1 = cleanName(els.p1NameInput.value, "Player 1");
+      profile.localP2 = cleanName(els.p2NameInput.value, "Player 2");
+      writeStorage("overreachLocalP1", profile.localP1);
+      writeStorage("overreachLocalP2", profile.localP2);
+    } else {
+      profile.name = cleanName(els.p1NameInput.value, "Player");
+      writeStorage("overreachPlayerName", profile.name);
+    }
+  }
+
+  async function prepareOnline() {
+    if (online.client) return online.client;
+    if (online.initPromise) return online.initPromise;
+
+    online.initPromise = (async () => {
+      try {
+        const response = await fetch("/api/supabase-config", { cache: "no-store" });
+        if (!response.ok) throw new Error("Online play is temporarily unavailable.");
+        const config = await response.json();
+        if (!config.url || !config.anonKey || !window.supabase) {
+          throw new Error("Online play is not configured yet.");
+        }
+        online.client = window.supabase.createClient(config.url, config.anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        online.isReady = true;
+        online.configError = "";
+        render();
+        return online.client;
+      } catch (error) {
+        online.isReady = false;
+        online.configError = error.message || "Online play is temporarily unavailable.";
+        render();
+        return null;
+      }
+    })();
+
+    return online.initPromise;
+  }
+
+  async function createOnlineRoom() {
+    if (actionBusy) return;
+    saveNamesFromForm();
+    const client = await prepareOnline();
+    if (!client) return;
+
+    actionBusy = true;
+    render();
+    try {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        const roomId = generateRoomId();
+        const secret = randomSecret();
+        const { data, error } = await client.rpc("overreach_create_room_v2", {
+          p_room_id: roomId,
+          p_player_id: online.playerId,
+          p_player_name: profile.name,
+          p_player_secret: secret,
+          p_timer_enabled: timerEnabled,
+        });
+        if (error && isRoomCodeCollision(error)) continue;
+        if (error) throw error;
+        online.roomId = roomId;
+        online.secret = secret;
+        writeStorage(credentialKey(roomId), secret);
+        updateRoomUrl(roomId);
+        applyOnlineRoom(data);
+        startPolling();
+        showToast("Private match created.");
+        return;
+      }
+      throw new Error("Could not create a room code. Try again.");
+    } catch (error) {
+      handleOnlineError(error, "Could not create a private match.");
+    } finally {
+      actionBusy = false;
+      render();
+    }
+  }
+
+  async function joinOnlineRoom(roomIdValue, options = {}) {
+    if (actionBusy) return;
+    const roomId = cleanRoomId(roomIdValue);
+    if (roomId.length !== ROOM_ID_LENGTH) {
+      showToast("Enter the six-character room code.");
+      return;
+    }
+
+    saveNamesFromForm();
+    const client = await prepareOnline();
+    if (!client) return;
+    const storedSecret = readStorage(credentialKey(roomId));
+    const secret = storedSecret || randomSecret();
+
+    actionBusy = true;
+    render();
+    try {
+      const { data, error } = await client.rpc("overreach_join_room_v2", {
+        p_room_id: roomId,
+        p_player_id: online.playerId,
+        p_player_name: profile.name,
+        p_player_secret: secret,
+      });
+      if (error) throw error;
+      online.roomId = roomId;
+      online.secret = secret;
+      writeStorage(credentialKey(roomId), secret);
+      updateRoomUrl(roomId);
+      applyOnlineRoom(data);
+      startPolling();
+      if (!options.silent) showToast(storedSecret ? "Match restored." : "Joined private match.");
+    } catch (error) {
+      if (!storedSecret) removeStorage(credentialKey(roomId));
+      if (options.silent) {
+        inviteCode = roomId;
+        clearOnlineSession(false);
+      } else {
+        handleOnlineError(error, "Could not join that room.");
+      }
+    } finally {
+      actionBusy = false;
+      render();
+    }
+  }
+
+  function isRoomCodeCollision(error) {
+    return String(error?.code || "").includes("23505") || String(error?.message || "").includes("room_code_taken");
+  }
+
+  async function callRoomRpc(functionName, extra = {}) {
+    const client = await prepareOnline();
+    if (!client || !online.roomId || !online.secret) throw new Error("Room connection is missing.");
+    const { data, error } = await client.rpc(functionName, {
+      p_room_id: online.roomId,
+      p_player_secret: online.secret,
+      ...extra,
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  function applyOnlineRoom(room) {
+    if (!room) return;
+    const previousPhase = online.room?.phase;
+    const previousRound = online.room?.round;
+    online.room = room;
+    online.failures = 0;
+    if (room.phase !== previousPhase || room.round !== previousRound || room.you?.locked) selectedCard = null;
+    render();
+  }
+
+  function startPolling() {
+    stopPolling();
+    online.pollTimer = window.setInterval(refreshOnlineRoom, POLL_MS);
+  }
+
+  function stopPolling() {
+    if (online.pollTimer) window.clearInterval(online.pollTimer);
+    online.pollTimer = null;
+  }
+
+  async function refreshOnlineRoom() {
+    if (online.refreshBusy || !online.roomId || !online.secret) return;
+    online.refreshBusy = true;
+    try {
+      const room = await callRoomRpc("overreach_get_room_v2");
+      applyOnlineRoom(room);
+    } catch (error) {
+      online.failures += 1;
+      if (online.failures === 4) showToast("Connection lost. Reconnecting...");
+      renderConnection();
+      if (isTerminalRoomError(error)) {
+        showToast("This room is no longer available.");
+        clearOnlineSession();
+        render();
+      }
+    } finally {
+      online.refreshBusy = false;
+    }
+  }
+
+  function isTerminalRoomError(error) {
+    const message = String(error?.message || "").toLowerCase();
+    return message.includes("room_not_found") || message.includes("invalid_room_secret");
+  }
+
+  function handleOnlineError(error, fallback) {
+    const message = String(error?.message || "").toLowerCase();
+    let friendly = fallback;
+    if (message.includes("room_not_found")) friendly = "That room code does not exist or has expired.";
+    if (message.includes("room_full")) friendly = "That room already has two players.";
+    if (message.includes("invalid_room_secret")) friendly = "This device cannot reclaim that player seat.";
+    if (message.includes("overreach_create_room_v2") || message.includes("schema cache")) {
+      friendly = "Online play is being upgraded. Try again in a moment.";
+    }
+    showToast(friendly);
+  }
+
+  async function leaveOnlineRoom() {
+    if (!online.room) return;
+    const roomId = online.roomId;
+    try {
+      await callRoomRpc("overreach_leave_room_v2");
+    } catch {
+      // Local cleanup should never be blocked by a lost connection.
+    }
+    removeStorage(credentialKey(roomId));
+    clearOnlineSession();
+    showToast("You left the match.");
+    render();
+  }
+
+  function clearOnlineSession(clearUrl = true) {
+    stopPolling();
+    online.room = null;
+    online.roomId = "";
+    online.secret = "";
+    online.failures = 0;
+    selectedCard = null;
+    if (clearUrl) updateRoomUrl("");
+  }
+
+  async function requestRematch() {
+    if (actionBusy) return;
+    if (!online.room) {
+      startLocalGame(localState.mode);
+      return;
+    }
+    actionBusy = true;
+    render();
+    try {
+      const room = await callRoomRpc("overreach_rematch_v2");
+      applyOnlineRoom(room);
+    } catch (error) {
+      handleOnlineError(error, "Could not request a rematch.");
+    } finally {
+      actionBusy = false;
+      render();
+    }
   }
 
   function updateRoomUrl(roomId) {
     const url = new URL(window.location.href);
-    url.searchParams.set("room", roomId);
+    if (roomId) url.searchParams.set("room", roomId);
+    else url.searchParams.delete("room");
     window.history.replaceState({}, "", url);
   }
 
-  async function copyInviteLink() {
+  function inviteLink() {
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set("room", online.roomId);
+    return url.toString();
+  }
+
+  async function copyInvite() {
     if (!online.roomId) return;
     try {
-      await navigator.clipboard.writeText(inviteLink(online.roomId));
+      await navigator.clipboard.writeText(inviteLink());
       showToast("Invite link copied.");
     } catch {
       showToast(`Room code: ${online.roomId}`);
     }
   }
 
-  function bootFromRoomLink() {
-    const roomId = cleanRoomId(new URLSearchParams(window.location.search).get("room"));
-    if (!roomId) return;
-    state = createState("online");
-    els.roomCodeInput.value = roomId;
-    prepareOnlineMode().then(() => joinOnlineRoom(roomId));
+  async function shareInvite() {
+    if (!online.roomId) return;
+    const shareData = {
+      title: "Play Overreach with me",
+      text: `Join my Overreach match. Room ${online.roomId}.`,
+      url: inviteLink(),
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+    copyInvite();
   }
 
-  function localRevealKey(round, seat) {
-    return `overreachReveal:${online.roomId}:${round}:${seat}`;
+  function backToModes() {
+    if (online.room) {
+      leaveOnlineRoom();
+      return;
+    }
+    localState = createLocalState(appMode === "online" ? "ai" : appMode);
+    selectedCard = null;
+    render();
   }
 
-  function storeLocalReveal(round, seat, reveal) {
-    try {
-      window.sessionStorage.setItem(localRevealKey(round, seat), JSON.stringify(reveal));
-    } catch {
-      online.localReveal = reveal;
+  function showToast(message) {
+    window.clearTimeout(toastTimer);
+    els.toast.textContent = message;
+    els.toast.classList.add("is-visible");
+    toastTimer = window.setTimeout(() => els.toast.classList.remove("is-visible"), 2600);
+  }
+
+  function openRules() {
+    if (typeof els.rulesDialog.showModal === "function") els.rulesDialog.showModal();
+  }
+
+  function closeRules() {
+    if (els.rulesDialog.open) els.rulesDialog.close();
+  }
+
+  function openHistory() {
+    els.matchSidebar.classList.add("is-open");
+  }
+
+  function closeHistory() {
+    els.matchSidebar.classList.remove("is-open");
+  }
+
+  function handleSetupSubmit(event) {
+    event.preventDefault();
+    if (appMode === "ai") startLocalGame("ai");
+    if (appMode === "local") startLocalGame("local");
+  }
+
+  function handleNameInput() {
+    if (appMode === "local") {
+      profile.localP1 = els.p1NameInput.value.slice(0, 18);
+      profile.localP2 = els.p2NameInput.value.slice(0, 18);
+    } else {
+      profile.name = els.p1NameInput.value.slice(0, 18);
     }
   }
 
-  function readLocalReveal(round, seat) {
-    try {
-      const raw = window.sessionStorage.getItem(localRevealKey(round, seat));
-      return raw ? JSON.parse(raw) : online.localReveal;
-    } catch {
-      return online.localReveal;
+  function bootFromInvite() {
+    if (!inviteCode) return;
+    appMode = "online";
+    els.roomCodeInput.value = inviteCode;
+    const secret = readStorage(credentialKey(inviteCode));
+    if (secret) {
+      prepareOnline().then(() => joinOnlineRoom(inviteCode, { silent: true }));
     }
   }
 
-  function randomSalt() {
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
-
-  async function hashOnlinePick(roomId, round, seat, card, salt) {
-    const data = `${roomId}:${round}:${seat}:${card}:${salt}`;
-    const bytes = new TextEncoder().encode(data);
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
-
+  els.modeOnlineButton.addEventListener("click", () => setMode("online"));
   els.modeAiButton.addEventListener("click", () => setMode("ai"));
   els.modeLocalButton.addEventListener("click", () => setMode("local"));
-  els.modeOnlineButton.addEventListener("click", () => setMode("online"));
-  els.p1NameInput.addEventListener("input", () => updateName("p1", els.p1NameInput.value));
-  els.p2NameInput.addEventListener("input", () => updateName("p2", els.p2NameInput.value));
-  els.createRoomButton.addEventListener("click", createOnlineRoom);
-  els.joinRoomButton.addEventListener("click", () => joinOnlineRoom(els.roomCodeInput.value));
-  els.copyInviteButton.addEventListener("click", copyInviteLink);
+  els.setupForm.addEventListener("submit", handleSetupSubmit);
+  els.p1NameInput.addEventListener("input", handleNameInput);
+  els.p2NameInput.addEventListener("input", handleNameInput);
+  els.timerToggle.addEventListener("change", () => {
+    timerEnabled = els.timerToggle.checked;
+    writeStorage("overreachTimer", timerEnabled ? "on" : "off");
+  });
   els.roomCodeInput.addEventListener("input", () => {
     els.roomCodeInput.value = cleanRoomId(els.roomCodeInput.value);
   });
   els.roomCodeInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") joinOnlineRoom(els.roomCodeInput.value);
+    if (event.key === "Enter") {
+      event.preventDefault();
+      joinOnlineRoom(els.roomCodeInput.value);
+    }
   });
-  els.resetButton.addEventListener("click", startNewGame);
-  els.startGameButton.addEventListener("click", startGame);
-  els.timerToggle.addEventListener("change", () => setTimerEnabled(els.timerToggle.checked));
-  els.nextRoundButton.addEventListener("click", advanceLocalRound);
+  els.createRoomButton.addEventListener("click", createOnlineRoom);
+  els.joinRoomButton.addEventListener("click", () => joinOnlineRoom(els.roomCodeInput.value));
+  els.copyInviteButton.addEventListener("click", copyInvite);
+  els.shareInviteButton.addEventListener("click", shareInvite);
+  els.cancelLobbyButton.addEventListener("click", leaveOnlineRoom);
+  els.leaveButton.addEventListener("click", backToModes);
+  els.homeButton.addEventListener("click", () => {
+    if (els.setupView.classList.contains("is-hidden")) showToast("Use the leave button to exit this match.");
+  });
+  els.activeHand.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-card]");
+    if (button) selectCard(Number(button.dataset.card));
+  });
+  els.lockCardButton.addEventListener("click", lockSelectedCard);
   els.privacyContinueButton.addEventListener("click", continuePrivacy);
+  els.rematchButton.addEventListener("click", requestRematch);
+  els.gameOverHomeButton.addEventListener("click", backToModes);
   els.rulesButton.addEventListener("click", openRules);
   els.closeRulesButton.addEventListener("click", closeRules);
   els.rulesDialog.addEventListener("click", (event) => {
     if (event.target === els.rulesDialog) closeRules();
   });
+  els.historyButton.addEventListener("click", openHistory);
+  els.closeHistoryButton.addEventListener("click", closeHistory);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && online.room) refreshOnlineRoom();
+  });
+  window.addEventListener("online", () => online.room && refreshOnlineRoom());
 
-  window.OverreachRules = {
-    chooseAiCard,
-    resolveRound,
-    tierFor,
-  };
+  window.OverreachRules = { chooseAiCard, resolveRound, tierFor };
 
-  bootFromRoomLink();
+  els.p1NameInput.value = profile.name;
+  els.p2NameInput.value = profile.localP2;
+  clockTimer = window.setInterval(tick, 250);
+  prepareOnline();
+  bootFromInvite();
   render();
 })();
