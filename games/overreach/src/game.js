@@ -474,9 +474,17 @@
       return `<span class="${classes.join(" ")}"></span>`;
     }).join("");
 
-    renderMiniHand(els.leftMiniHand, vm.left?.hand || []);
-    renderMiniHand(els.rightMiniHand, vm.right?.hand || []);
-    els.leftRemainingLabel.textContent = `${vm.leftLabel} has ${(vm.left?.hand || []).length} left`;
+    const leftHandCount = handCount(vm.left);
+    const rightHandCount = handCount(vm.right);
+    const localPlayerTwoView = vm.mode === "local" && vm.activePlayer === "p2";
+    if (localPlayerTwoView) {
+      renderMiniHand(els.leftMiniHand, vm.left?.hand || []);
+      renderHiddenMiniHand(els.rightMiniHand, rightHandCount);
+    } else {
+      renderHiddenMiniHand(els.leftMiniHand, leftHandCount);
+      renderMiniHand(els.rightMiniHand, vm.right?.hand || []);
+    }
+    els.leftRemainingLabel.textContent = `${vm.leftLabel} has ${leftHandCount} left`;
     els.rightRemainingLabel.textContent = `${vm.rightMeta === "You" ? "You have" : `${vm.rightLabel} has`} ${(vm.right?.hand || []).length} left`;
 
     renderSlots(vm);
@@ -496,6 +504,18 @@
       const used = !hand.map(Number).includes(card);
       return `<span class="mini-token${used ? " is-used" : ""}">${used ? "" : card}</span>`;
     }).join("");
+  }
+
+  function renderHiddenMiniHand(container, count) {
+    container.innerHTML = Array.from({ length: count }, () => {
+      return '<span class="mini-token is-hidden-card" aria-hidden="true"></span>';
+    }).join("");
+  }
+
+  function handCount(player) {
+    const explicitCount = Number(player?.handCount);
+    if (Number.isInteger(explicitCount) && explicitCount >= 0) return explicitCount;
+    return Array.isArray(player?.hand) ? player.hand.length : 0;
   }
 
   function renderSlots(vm) {
@@ -636,23 +656,44 @@
     els.historyCount.textContent = `${vm.history.length} / ${MAX_ROUNDS} rounds`;
     els.historyFabCount.textContent = String(vm.history.length);
     if (!vm.history.length) {
-      els.historyList.innerHTML = '<li class="history-empty">Revealed rounds appear here. Every spent token stays visible.</li>';
+      els.historyList.innerHTML = '<li class="history-empty">Your spent tokens appear here. Your rival\'s choices are yours to remember.</li>';
       return;
     }
 
     els.historyList.innerHTML = vm.history.map((entry) => {
-      const cards = orientedCards(entry);
-      const winner = orientedWinner(entry);
+      const viewer = historyViewerSeat(vm);
+      const card = historyCardForViewer(entry, viewer);
+      const winner = entry?.result?.winner ?? entry?.winner ?? null;
       const overreach = Boolean(entry?.result?.overreach ?? entry?.overreach);
+      const opponentName = historyOpponentName(vm, viewer);
       const summary = overreach
-        ? `${Math.max(cards.left, cards.right)} overreached; ${Math.min(cards.left, cards.right)} won.`
-        : winner === "right"
+        ? winner === viewer
+          ? "You punished an overreach."
+          : "Your token overreached."
+        : winner === viewer
           ? "You won the round."
-          : winner === "left"
-            ? `${vm.leftLabel} won the round.`
+          : winner
+            ? `${opponentName} won the round.`
             : "Tie. No points.";
-      return `<li class="history-item"><span class="history-round">R${entry.round}</span><span class="history-token ${tierFor(cards.left)}">${cards.left}</span><span class="history-vs">VS</span><span class="history-token ${tierFor(cards.right)}">${cards.right}</span><span class="history-summary">${escapeHtml(summary)}</span></li>`;
+      return `<li class="history-item"><span class="history-round">R${entry.round}</span><span class="history-token ${tierFor(card)}">${card}</span><span class="history-summary">${escapeHtml(summary)}</span></li>`;
     }).join("");
+  }
+
+  function historyViewerSeat(vm) {
+    if (online.room) return online.room.seat;
+    if (localState.mode === "ai") return "p1";
+    return vm.activePlayer === "p2" || localState.phase === "pass-to-p2" ? "p2" : "p1";
+  }
+
+  function historyCardForViewer(entry, viewer) {
+    const sanitizedCard = Number(entry?.yourCard);
+    if (CARD_VALUES.includes(sanitizedCard)) return sanitizedCard;
+    return Number(viewer === "p2" ? entry?.p2Card : entry?.p1Card);
+  }
+
+  function historyOpponentName(vm, viewer) {
+    if (vm.mode === "local" && viewer === "p2") return vm.rightLabel;
+    return vm.leftLabel;
   }
 
   function renderTimer(vm) {

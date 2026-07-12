@@ -32,6 +32,8 @@ The browser never receives direct table access. Each device owns a private room 
 
 Rooms expire after 24 hours and are cleaned up as new rooms are created. Explicitly leaving a room ends it for both players.
 
+Opponent tokens are visible only during the brief round reveal. Afterward, each player can see only their own spent-token history and the opponent's remaining token count; opponent values are removed from the sanitized room response.
+
 ## Rules
 
 Each player has tokens `1` through `9`. Each round, both players spend one unused token. The higher token wins and scores its own value, unless it is more than `4` higher than the other token. In that case it overreaches, busts, and the lower token wins instead. Same number ties. After nine rounds, highest score wins; if score is tied, most round wins decides it.

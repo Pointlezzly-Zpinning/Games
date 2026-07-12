@@ -911,6 +911,14 @@ p {
   background: transparent;
 }
 
+.mini-token.is-hidden-card {
+  border-style: solid;
+  border-color: rgba(249, 246, 238, 0.22);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 3px, rgba(249, 246, 238, 0.08) 3px 5px),
+    var(--surface-3);
+}
+
 .showdown {
   display: grid;
   min-height: 0;
@@ -1211,7 +1219,7 @@ p {
 
 .history-item {
   display: grid;
-  grid-template-columns: 24px 32px 10px 32px;
+  grid-template-columns: 24px 32px minmax(0, 1fr);
   align-items: center;
   gap: 5px;
   padding: 8px 4px;
@@ -1255,7 +1263,6 @@ p {
 }
 
 .history-summary {
-  grid-column: 1 / -1;
   color: var(--muted);
   font-size: 0.62rem;
   line-height: 1.35;

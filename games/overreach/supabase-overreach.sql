@@ -113,7 +113,7 @@ begin
       'name', coalesce(room.p2_name, 'Waiting...'),
       'score', room.p2_score,
       'wins', room.p2_wins,
-      'hand', to_jsonb(room.p2_hand),
+      'handCount', cardinality(room.p2_hand),
       'locked', room.p2_card is not null,
       'joined', room.p2_id is not null,
       'connected', room.p2_last_seen is not null and room.p2_last_seen > now() - interval '6 seconds'
@@ -121,13 +121,30 @@ begin
       'name', room.p1_name,
       'score', room.p1_score,
       'wins', room.p1_wins,
-      'hand', to_jsonb(room.p1_hand),
+      'handCount', cardinality(room.p1_hand),
       'locked', room.p1_card is not null,
       'joined', true,
       'connected', room.p1_last_seen > now() - interval '6 seconds'
     ) end,
-    'history', room.history,
-    'lastRound', room.last_round,
+    'history', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'round', history_entry->'round',
+          'yourCard', case when seat = 'p1'
+            then history_entry->'p1Card'
+            else history_entry->'p2Card'
+          end,
+          'result', jsonb_build_object(
+            'winner', history_entry->'result'->'winner',
+            'overreach', history_entry->'result'->'overreach'
+          )
+        )
+        order by history_order
+      )
+      from jsonb_array_elements(room.history) with ordinality
+        as history_rows(history_entry, history_order)
+    ), '[]'::jsonb),
+    'lastRound', case when room.phase = 'reveal' then room.last_round else null end,
     'rematch', case when seat = 'p1' then jsonb_build_object(
       'you', room.rematch_p1,
       'opponent', room.rematch_p2
