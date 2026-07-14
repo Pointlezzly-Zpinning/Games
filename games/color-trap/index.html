@@ -13,7 +13,7 @@
     <title>Color Trap</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="src/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="src/styles.css?v=wave-1">
+    <link rel="stylesheet" href="src/styles.css?v=rooms-4">
   </head>
   <body>
     <div class="app-shell">
@@ -259,6 +259,22 @@
                 </div>
               </div>
 
+              <dialog class="result-panel" id="resultDialog" aria-labelledby="resultTitle">
+                <div class="result-summary">
+                  <span class="result-mark" id="resultMark" aria-hidden="true">R</span>
+                  <div class="result-copy">
+                    <span class="eyebrow" id="resultEyebrow">Round complete</span>
+                    <h2 id="resultTitle">Red wins the round</h2>
+                    <p id="resultMessage">Blue completed the trap.</p>
+                  </div>
+                  <div class="result-score" id="resultScore">Red 1 | Blue 0</div>
+                </div>
+                <div class="result-actions">
+                  <button class="primary-button" id="resultPrimaryButton" type="button">Next round</button>
+                  <button class="secondary-button" id="resultHomeButton" type="button">Back to menu</button>
+                </div>
+              </dialog>
+
               <div class="game-footer-actions">
                 <button class="secondary-button" id="newMatchButton" type="button">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"></path><path d="M4 4v4.6h4.6"></path></svg>
@@ -354,16 +370,6 @@
       </label>
     </dialog>
 
-    <dialog class="app-dialog result-dialog" id="resultDialog">
-      <span class="result-mark" id="resultMark" aria-hidden="true">R</span>
-      <span class="eyebrow" id="resultEyebrow">Round complete</span>
-      <h2 id="resultTitle">Red wins the round</h2>
-      <p id="resultMessage">Blue completed the trap.</p>
-      <div class="result-score" id="resultScore">Red 1 | Blue 0</div>
-      <button class="primary-button dialog-primary" id="resultPrimaryButton" type="button">Next round</button>
-      <button class="secondary-button dialog-secondary" id="resultHomeButton" type="button">Back to menu</button>
-    </dialog>
-
     <dialog class="app-dialog confirm-dialog" id="confirmDialog">
       <span class="eyebrow">Leave this match?</span>
       <h2 id="confirmTitle">Start over</h2>
@@ -377,6 +383,6 @@
     <div class="toast" id="toast" aria-live="polite"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.5" defer></script>
-    <script src="src/game.js?v=wave-1" defer></script>
+    <script src="src/game.js?v=rooms-4" defer></script>
   </body>
 </html>

@@ -10,7 +10,8 @@
   const ROOM_ID_LENGTH = 6;
   const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const ROOM_JOIN_TIMEOUT_MS = 9000;
-  const ROOM_SYNC_INTERVAL_MS = 5000;
+  const ROOM_SYNC_INTERVAL_MS = 2500;
+  const ROOM_RECONNECT_DELAY_MS = 900;
   const PLAYER_ORDER = Object.freeze(["p1", "p2"]);
   const PLAYER_INFO = Object.freeze({
     p1: { color: "Red", token: "R" },
@@ -617,10 +618,13 @@
     client: null,
     config: null,
     connection: "offline",
+    connectionGeneration: 0,
     guestToken: "",
     joinTimer: null,
+    pendingGuestToken: "",
     pollTimer: null,
     ready: false,
+    reconnectTimer: null,
     rev: 0,
     room: null,
     roomId: "",
@@ -1096,7 +1100,7 @@
     els.resultPrimaryButton.textContent = isMatch ? "Ready for rematch" : "Next round";
     els.resultPrimaryButton.disabled = isMatch && state.mode === "online" && Boolean(state.rematchVotes?.[online.seat]);
     if (els.resultPrimaryButton.disabled) els.resultPrimaryButton.textContent = "Waiting for opponent";
-    openDialog(els.resultDialog);
+    if (!els.resultDialog.open) els.resultDialog.show();
     if (!wasOpen) {
       playFeedback(winner === online.seat || (state.mode !== "online" && winner === "p1") ? "win" : "loss");
     }
@@ -1384,11 +1388,15 @@
     disconnectOnlineTransport();
     if (!online.roomId) return;
     if (!online.client) throw new Error("Online play could not connect. Refresh and try again.");
+    const generation = online.connectionGeneration;
     setConnection("connecting");
 
-    online.subscription = online.client
+    const channel = online.client
       .channel(`color-trap-room-${online.roomId}`, {
-        config: { broadcast: { ack: true, self: false } },
+        config: {
+          broadcast: { ack: true, self: false },
+          presence: { key: online.token },
+        },
       })
       .on("broadcast", { event: "room-join" }, handleJoinRequest)
       .on("broadcast", { event: "room-state" }, handleRemoteState)
@@ -1396,26 +1404,99 @@
       .on("broadcast", { event: "room-state-request" }, handleStateRequest)
       .on("broadcast", { event: "room-error" }, handleRemoteError)
       .on("broadcast", { event: "room-closed" }, handleRoomClosed)
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          setConnection("live");
-          if (online.seat === "p1") broadcastRoomState().catch(() => {});
-          else requestOnlineJoin();
-        } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
-          setConnection("offline");
-        }
-      });
+      .on("presence", { event: "sync" }, handlePresenceSync)
+      .on("presence", { event: "join" }, handlePresenceJoin);
+
+    online.subscription = channel;
+    channel.subscribe((status) => {
+      if (generation !== online.connectionGeneration || online.subscription !== channel) return;
+      if (status === "SUBSCRIBED") {
+        setConnection("live");
+        trackOnlinePresence(channel, generation);
+        if (online.seat === "p1") broadcastRoomState().catch(() => {});
+        else requestOnlineJoin();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        setConnection("offline");
+        scheduleOnlineReconnect();
+      }
+    });
 
     online.pollTimer = setInterval(pollOnlineRoom, ROOM_SYNC_INTERVAL_MS);
   }
 
   function disconnectOnlineTransport() {
+    online.connectionGeneration += 1;
     if (online.subscription && online.client) online.client.removeChannel(online.subscription);
     online.subscription = null;
+    clearTimeout(online.reconnectTimer);
+    online.reconnectTimer = null;
     clearTimeout(online.joinTimer);
     online.joinTimer = null;
     clearInterval(online.pollTimer);
     online.pollTimer = null;
+  }
+
+  function scheduleOnlineReconnect(delay = ROOM_RECONNECT_DELAY_MS) {
+    if (!online.roomId || !online.ready || online.reconnectTimer) return;
+    online.reconnectTimer = setTimeout(() => {
+      online.reconnectTimer = null;
+      if (!online.roomId || !online.ready) return;
+      connectOnlineRoom().catch(() => {
+        setConnection("offline");
+        scheduleOnlineReconnect(ROOM_RECONNECT_DELAY_MS * 2);
+      });
+    }, delay);
+  }
+
+  function ensureOnlineConnection() {
+    if (!online.roomId || !online.ready) return;
+    if (online.connection === "live" && online.subscription) {
+      pollOnlineRoom();
+      return;
+    }
+    scheduleOnlineReconnect(0);
+  }
+
+  function trackOnlinePresence(channel, generation) {
+    const name = online.room?.players?.[online.seat]?.name || cleanName(els.onlineNameInput.value);
+    channel.track({
+      roomId: online.roomId,
+      seat: online.seat,
+      token: online.token,
+      name,
+    }).then((status) => {
+      if (generation !== online.connectionGeneration || status === "ok") return;
+      scheduleOnlineReconnect();
+    }).catch(() => scheduleOnlineReconnect());
+  }
+
+  function handlePresenceSync() {
+    if (!online.subscription || !online.roomId) return;
+    const presenceState = online.subscription.presenceState?.() || {};
+    handlePresencePlayers(Object.values(presenceState).flat());
+  }
+
+  function handlePresenceJoin(event) {
+    handlePresencePlayers(event?.newPresences || []);
+  }
+
+  function handlePresencePlayers(presences) {
+    const players = presences.filter((presence) => (
+      cleanRoomId(presence.roomId) === online.roomId && presence.token
+    ));
+
+    if (online.seat === "p1") {
+      players
+        .filter((presence) => presence.seat === "p2" && presence.token !== online.token)
+        .forEach((presence) => handleJoinRequest({ payload: presence }));
+      return;
+    }
+
+    const hostIsPresent = players.some((presence) => presence.seat === "p1");
+    if (hostIsPresent && !online.authorized) {
+      setOnlineMessage("Host found. Joining the match...");
+      requestOnlineJoin();
+    }
   }
 
   function onlineEventPayload(message) {
@@ -1448,14 +1529,17 @@
     broadcastOnline("room-join", {
       token: online.token,
       name: cleanName(els.onlineNameInput.value),
-    }).catch(() => setConnection("offline"));
+    }).catch(() => {
+      setConnection("offline");
+      scheduleOnlineReconnect();
+    });
 
     if (!online.joinTimer && !online.authorized) {
       online.joinTimer = setTimeout(() => {
         online.joinTimer = null;
         if (online.authorized) return;
         online.busy = false;
-        setOnlineMessage("The host is not in that room yet. Check the code or ask them to reopen it.", true);
+        setOnlineMessage("Still trying to reach the host. Keep both game pages open and they will reconnect automatically.", true);
         renderOnline();
       }, ROOM_JOIN_TIMEOUT_MS);
     }
@@ -1486,23 +1570,30 @@
     const token = String(payload.token || "");
     if (!token) return;
 
-    const next = normalizeRoomState(online.room);
-    if (next.players.p2 && online.guestToken && token !== online.guestToken) {
-      await sendOnlineError(token, "That room already has two players.");
-      return;
-    }
+    if (online.pendingGuestToken === token) return;
+    online.pendingGuestToken = token;
 
-    if (!online.guestToken) online.guestToken = token;
-    const name = cleanName(payload.name, "Blue");
-    const changed = !next.players.p2 || next.players.p2.name !== name || next.phase === "lobby";
-    next.players.p2 = { name };
-    if (next.players.p1 && next.players.p2 && next.phase === "lobby") {
-      next.phase = "playing";
-      next.current = next.starter || "p1";
-    }
+    try {
+      const next = normalizeRoomState(online.room);
+      if (next.players.p2 && online.guestToken && token !== online.guestToken) {
+        await sendOnlineError(token, "That room already has two players.");
+        return;
+      }
 
-    if (changed) await commitHostState(next, token);
-    else await broadcastRoomState(token);
+      if (!online.guestToken) online.guestToken = token;
+      const name = cleanName(payload.name, "Blue");
+      const changed = !next.players.p2 || next.players.p2.name !== name || next.phase === "lobby";
+      next.players.p2 = { name };
+      if (next.players.p1 && next.players.p2 && next.phase === "lobby") {
+        next.phase = "playing";
+        next.current = next.starter || "p1";
+      }
+
+      if (changed) await commitHostState(next, token);
+      else await broadcastRoomState(token);
+    } finally {
+      if (online.pendingGuestToken === token) online.pendingGuestToken = "";
+    }
   }
 
   function handleRemoteState(message) {
@@ -1511,7 +1602,11 @@
     if (cleanRoomId(payload.roomId) !== online.roomId || !payload.state) return;
     const target = String(payload.target || "");
     if (target && target !== online.token) return;
-    if (!online.authorized && target !== online.token) return;
+    if (!online.authorized && target !== online.token) {
+      setOnlineMessage("Host found. Joining the match...");
+      requestOnlineJoin();
+      return;
+    }
     const rev = Number(payload.rev || 0);
     if (online.authorized && rev < online.rev) return;
 
@@ -1583,7 +1678,11 @@
   }
 
   async function pollOnlineRoom() {
-    if (!online.roomId || online.connection !== "live") return;
+    if (!online.roomId) return;
+    if (online.connection !== "live") {
+      scheduleOnlineReconnect();
+      return;
+    }
     try {
       if (online.seat === "p1") await broadcastRoomState();
       else if (online.authorized) {
@@ -1738,6 +1837,7 @@
     online.busy = false;
     online.connection = "offline";
     online.guestToken = "";
+    online.pendingGuestToken = "";
     online.rev = 0;
     online.room = null;
     online.roomId = "";
@@ -1842,8 +1942,11 @@
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && online.roomId) pollOnlineRoom();
+    if (!document.hidden) ensureOnlineConnection();
   });
+  window.addEventListener("focus", ensureOnlineConnection);
+  window.addEventListener("online", ensureOnlineConnection);
+  window.addEventListener("pageshow", ensureOnlineConnection);
 
   window.ColorTrapRules = {
     applyMoveToState,
@@ -1855,7 +1958,6 @@
     wouldComplete,
     wouldLose,
   };
-
   renderTrapGallery();
   syncSettingsControls();
   render();

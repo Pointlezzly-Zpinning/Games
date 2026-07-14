@@ -358,7 +358,7 @@ button:disabled {
 .waiting-status p,
 .rules-copy,
 .confirm-dialog p,
-.result-dialog p {
+.result-panel p {
   color: var(--muted);
   line-height: 1.45;
 }
@@ -1557,17 +1557,40 @@ button:disabled {
   transform: translateX(20px);
 }
 
-.result-dialog {
-  width: min(410px, calc(100% - 24px));
-  text-align: center;
+.result-panel {
+  position: static;
+  width: min(100%, 620px);
+  max-width: none;
+  margin: 0 auto;
+  padding: 10px;
+  overflow: visible;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: #1a1c18;
+}
+
+.result-panel[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-summary {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .result-mark {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 12px;
+  width: 42px;
+  height: 42px;
+  margin: 0;
   background: var(--red);
-  font-size: 1.35rem;
+  font-size: 1rem;
 }
 
 .result-mark.is-blue {
@@ -1579,18 +1602,38 @@ button:disabled {
   background: var(--gold);
 }
 
-.result-dialog h2 {
-  margin: 6px 0 7px;
-  font-size: 1.7rem;
+.result-copy {
+  min-width: 0;
+}
+
+.result-panel h2 {
+  margin: 2px 0;
+  font-size: 1rem;
+}
+
+.result-panel p {
+  margin: 0;
+  font-size: 0.76rem;
 }
 
 .result-score {
-  margin: 16px 0;
-  padding: 10px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  padding: 7px 9px;
+  border-left: 1px solid var(--line);
   color: var(--gold);
+  font-size: 0.78rem;
   font-weight: 900;
+  white-space: nowrap;
+}
+
+.result-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.result-actions button {
+  min-height: 36px;
+  padding: 7px 10px;
+  white-space: nowrap;
 }
 
 .confirm-dialog {
@@ -1934,6 +1977,34 @@ button:disabled {
 
   .board-frame {
     width: min(100%, 520px, calc(100svh - 188px));
+  }
+
+  .result-panel[open] {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .result-summary {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .result-mark {
+    width: 36px;
+    height: 36px;
+    font-size: 0.86rem;
+  }
+
+  .result-score {
+    grid-column: 2;
+    padding: 3px 0 0;
+    border: 0;
+  }
+
+  .result-actions button {
+    flex: 1;
+    min-width: 0;
   }
 
   .coord-row {
